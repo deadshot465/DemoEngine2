@@ -2,6 +2,7 @@
 #include <GLFW/glfw3.h>
 #include <memory>
 #include "../Interfaces/IWindow.h"
+#include "VK/GraphicsEngineVK.h"
 
 namespace GLVK
 {
@@ -17,7 +18,7 @@ namespace GLVK
 		Window(std::wstring_view title, int width, int height, bool fullScreen);
 		~Window();
 
-		// IWindow ‚ğ‰î‚µ‚ÄŒp³‚³‚ê‚Ü‚µ‚½
+		// IWindow ï¿½ï¿½ï¿½î‚µï¿½ÄŒpï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ü‚ï¿½ï¿½ï¿½
 		virtual bool Initialize() override;
 		virtual void Run() override;
 

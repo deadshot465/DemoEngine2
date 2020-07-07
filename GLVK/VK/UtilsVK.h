@@ -2,6 +2,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string_view>
+#include <vector>
 #include <vulkan/vulkan.hpp>
 
 namespace GLVK
@@ -18,6 +19,13 @@ namespace GLVK
 				return GraphicsQueue.has_value() && PresentQueue.has_value();
 			}
 		};
+
+		struct SwapchainDetails
+        {
+		    vk::SurfaceCapabilitiesKHR SurfaceCapabilities;
+		    std::vector<vk::SurfaceFormatKHR> Formats;
+		    std::vector<vk::PresentModeKHR> PresentModes;
+        };
 
 		inline void ThrowIfFailed(VkResult result, std::string_view message)
 		{

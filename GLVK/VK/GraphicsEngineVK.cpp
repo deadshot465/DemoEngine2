@@ -1,5 +1,7 @@
 #include "GraphicsEngineVK.h"
+#include <algorithm>
 #include <iostream>
+#include <numeric>
 #include <cassert>
 #include <cstring>
 #include "UtilsVK.h"
@@ -183,4 +185,88 @@ void GLVK::VK::GraphicsEngine::GetPhysicalDevice()
 			break;
 		}
 	}
+}
+
+void GLVK::VK::GraphicsEngine::CreateSwapchain()
+{
+    auto details = GetSwapchainDetails(m_physicalDevice, m_surface);
+    auto format = GetFormat(details.Formats);
+    auto present_mode = GetPresentMode(details.PresentModes);
+    auto extent = GetExtent(details.SurfaceCapabilities, m_handle);
+
+    uint32_t min_image_count = 0;
+    if (details.SurfaceCapabilities.maxImageCount > 0)
+    {
+        min_image_count = std::clamp<uint32_t>(details.SurfaceCapabilities.minImageCount + 1, details.SurfaceCapabilities.minImageCount, details.SurfaceCapabilities.maxImageCount);
+    }
+    else
+    {
+        min_image_count = details.SurfaceCapabilities.minImageCount + 1;
+    }
+
+    auto info = vk::SwapchainCreateInfoKHR();
+    info.oldSwapchain = nullptr;
+    info.clipped = VK_FALSE;
+    info.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
+    info.imageArrayLayers = 1;
+    info.imageColorSpace = format.colorSpace;
+    info.imageExtent = extent;
+    info.imageFormat = format.format;
+    info.imageUsage = vk::ImageUsageFlagBits::eColorAttachment;
+    info.minImageCount = min_image_count;
+    info.preTransform = details.SurfaceCapabilities.currentTransform;
+    info.presentMode = present_mode;
+    info.surface = m_surface;
+}
+
+GLVK::VK::SwapchainDetails GLVK::VK::GraphicsEngine::GetSwapchainDetails(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface) {
+    auto details = SwapchainDetails();
+    details.SurfaceCapabilities = device.getSurfaceCapabilitiesKHR(surface);
+    details.Formats = device.getSurfaceFormatsKHR(surface);
+    details.PresentModes = device.getSurfacePresentModesKHR(surface);
+    return details;
+}
+
+vk::Extent2D GLVK::VK::GraphicsEngine::GetExtent(const vk::SurfaceCapabilitiesKHR &capabilities, GLFWwindow* handle) noexcept {
+    if (capabilities.minImageExtent.width != std::numeric_limits<uint32_t>::max())
+    {
+        return capabilities.currentExtent;
+    }
+    else
+    {
+        auto width = 0;
+        auto height = 0;
+        glfwGetFramebufferSize(handle, &width, &height);
+
+        auto extent = vk::Extent2D();
+        extent.width = std::clamp<uint32_t>(width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width
+        );
+        extent.height = std::clamp<uint32_t>(height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height
+        );
+        return extent;
+    }
+}
+
+vk::SurfaceFormatKHR GLVK::VK::GraphicsEngine::GetFormat(const std::vector<vk::SurfaceFormatKHR> &formats) noexcept {
+    for (const auto& format : formats)
+    {
+        if (format.format == vk::Format::eB8G8R8A8Unorm && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
+        {
+            return format;
+        }
+    }
+    return formats[0];
+}
+
+vk::PresentModeKHR
+GLVK::VK::GraphicsEngine::GetPresentMode(const std::vector<vk::PresentModeKHR> &presentModes) noexcept {
+    auto fifo_support = false;
+    for (const auto& mode : presentModes)
+    {
+        if (mode == vk::PresentModeKHR::eMailbox)
+            return mode;
+        else if (mode == vk::PresentModeKHR::eFifo)
+            fifo_support = true;
+    }
+    return fifo_support ? vk::PresentModeKHR::eFifo : vk::PresentModeKHR::eImmediate;
 }
