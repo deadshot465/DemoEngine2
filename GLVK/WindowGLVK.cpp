@@ -1,7 +1,6 @@
 #include "WindowGLVK.h"
 #include <stdexcept>
 #include "../UtilsCommon.h"
-#include "VK/GraphicsEngineVK.h"
 
 GLVK::Window::Window(std::wstring_view title, int width, int height, bool fullScreen)
 	: IWindow(title, width, height, fullScreen)

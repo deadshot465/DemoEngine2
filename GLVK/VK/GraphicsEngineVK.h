@@ -25,6 +25,10 @@ namespace GLVK
 			static bool IsDeviceSuitable(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface) noexcept;
 			static QueueIndices GetQueueIndices(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface) noexcept;
 			static bool CheckExtensionSupport(const vk::PhysicalDevice& device) noexcept;
+			static GLVK::VK::SwapchainDetails GetSwapchainDetails(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface);
+			static vk::Extent2D GetExtent(const vk::SurfaceCapabilitiesKHR& capabilities, GLFWwindow* handle) noexcept;
+			static vk::SurfaceFormatKHR GetFormat(const std::vector<vk::SurfaceFormatKHR>& formats) noexcept;
+			static vk::PresentModeKHR GetPresentMode(const std::vector<vk::PresentModeKHR>& presentModes) noexcept;
 
 			void Dispose();
 			void CreateInstance();
@@ -32,6 +36,7 @@ namespace GLVK
 			void CreateSurface();
 			void GetPhysicalDevice();
 			void CreateLogicalDevice();
+			void CreateSwapchain();
 
 			inline static const std::vector<const char*> m_enabledLayerNames = {
 				"VK_LAYER_KHRONOS_validation"

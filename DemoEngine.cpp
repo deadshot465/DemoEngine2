@@ -1,5 +1,7 @@
 ﻿#include <iostream>
+#ifdef WIN32
 #include "DX/WindowDX.h"
+#endif
 #include "GLVK/WindowGLVK.h"
 
 int main()
