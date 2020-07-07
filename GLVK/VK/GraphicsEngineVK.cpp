@@ -1,8 +1,9 @@
 #include "GraphicsEngineVK.h"
 #include <iostream>
+#include <string>
+#include <unordered_set>
 #include <cassert>
 #include <cstring>
-#include "UtilsVK.h"
 
 GLVK::VK::GraphicsEngine::GraphicsEngine(GLFWwindow* window, int width, int height)
 	: m_handle(window), m_width(width), m_height(height)
@@ -13,6 +14,7 @@ GLVK::VK::GraphicsEngine::GraphicsEngine(GLFWwindow* window, int width, int heig
 		SetupDebug();
 		CreateSurface();
 		GetPhysicalDevice();
+		CreateLogicalDevice();
 	}
 	catch (const std::exception&)
 	{
@@ -23,6 +25,7 @@ GLVK::VK::GraphicsEngine::GraphicsEngine(GLFWwindow* window, int width, int heig
 GLVK::VK::GraphicsEngine::~GraphicsEngine()
 {
 	Dispose();
+	m_logicalDevice.destroy();
 	m_instance.destroySurfaceKHR(m_surface);
 	auto dispatcher = vk::DispatchLoaderDynamic();
 	dispatcher.init(m_instance, vkGetInstanceProcAddr);
@@ -40,7 +43,7 @@ void GLVK::VK::GraphicsEngine::Render()
 
 }
 
-std::vector<const char*> GLVK::VK::GraphicsEngine::GetRequiredExtensions(bool debug)
+std::vector<const char*> GLVK::VK::GraphicsEngine::GetRequiredExtensions(bool debug) noexcept
 {
 	uint32_t extension_count = 0;
 	auto instance_extensions = glfwGetRequiredInstanceExtensions(&extension_count);
@@ -53,7 +56,7 @@ std::vector<const char*> GLVK::VK::GraphicsEngine::GetRequiredExtensions(bool de
 	return extensions;
 }
 
-bool GLVK::VK::GraphicsEngine::CheckLayerSupport()
+bool GLVK::VK::GraphicsEngine::CheckLayerSupport() noexcept
 {
 	auto layer_properties = vk::enumerateInstanceLayerProperties();
 	for (const auto& layer : m_enabledLayerNames)
@@ -75,7 +78,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL GLVK::VK::GraphicsEngine::DebugCallback(VkDebugUt
 	return VK_FALSE;
 }
 
-bool GLVK::VK::GraphicsEngine::IsDeviceSuitable(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface)
+bool GLVK::VK::GraphicsEngine::IsDeviceSuitable(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface) noexcept
 {
 	auto queue_indices = GetQueueIndices(device, surface);
 	if (!queue_indices.IsCompleted())
@@ -87,10 +90,10 @@ bool GLVK::VK::GraphicsEngine::IsDeviceSuitable(const vk::PhysicalDevice& device
 	auto features = device.getFeatures();
 	auto feature_supports = features.samplerAnisotropy && features.sampleRateShading;
 
-	return feature_supports;
+	return feature_supports && CheckExtensionSupport(device);
 }
 
-GLVK::VK::QueueIndices GLVK::VK::GraphicsEngine::GetQueueIndices(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface)
+GLVK::VK::QueueIndices GLVK::VK::GraphicsEngine::GetQueueIndices(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface) noexcept
 {
 	auto queue_indices = QueueIndices();
 	auto properties = device.getQueueFamilyProperties();
@@ -113,6 +116,19 @@ GLVK::VK::QueueIndices GLVK::VK::GraphicsEngine::GetQueueIndices(const vk::Physi
 			return queue_indices;
 	}
 	return QueueIndices();
+}
+
+bool GLVK::VK::GraphicsEngine::CheckExtensionSupport(const vk::PhysicalDevice& device) noexcept
+{
+	auto properties = device.enumerateDeviceExtensionProperties();
+	auto enabled_extensions = std::unordered_set<std::string>(m_enabledExtensions.cbegin(), m_enabledExtensions.cend());
+
+	for (const auto& property : properties)
+	{
+		enabled_extensions.erase(property.extensionName.data());
+	}
+
+	return enabled_extensions.empty();
 }
 
 void GLVK::VK::GraphicsEngine::Dispose()
@@ -183,4 +199,45 @@ void GLVK::VK::GraphicsEngine::GetPhysicalDevice()
 			break;
 		}
 	}
+}
+
+void GLVK::VK::GraphicsEngine::CreateLogicalDevice()
+{
+	m_queueIndices = GetQueueIndices(m_physicalDevice, m_surface);
+
+	auto queue_create_infos = std::vector<vk::DeviceQueueCreateInfo>();
+	auto unique_indices = std::unordered_set<uint32_t>{
+		m_queueIndices.GraphicsQueue.value(),
+		m_queueIndices.PresentQueue.value()
+	};
+	auto priority = 1.0f;
+	for (const auto& index : unique_indices)
+	{
+		auto info = vk::DeviceQueueCreateInfo();
+		info.pQueuePriorities = &priority;
+		info.queueCount = 1;
+		info.queueFamilyIndex = index;
+		queue_create_infos.emplace_back(info);
+	}
+
+	auto features = vk::PhysicalDeviceFeatures();
+	features.samplerAnisotropy = VK_TRUE;
+	features.sampleRateShading = VK_TRUE;
+
+	auto info = vk::DeviceCreateInfo();
+	info.enabledExtensionCount = static_cast<uint32_t>(m_enabledExtensions.size());
+	info.pEnabledFeatures = &features;
+	info.ppEnabledExtensionNames = m_enabledExtensions.data();
+	info.pQueueCreateInfos = queue_create_infos.data();
+	info.queueCreateInfoCount = static_cast<uint32_t>(queue_create_infos.size());
+	
+	if (m_debug)
+	{
+		info.enabledLayerCount = static_cast<uint32_t>(m_enabledLayerNames.size());
+		info.ppEnabledLayerNames = m_enabledLayerNames.data();
+	}
+
+	m_logicalDevice = m_physicalDevice.createDevice(info);
+	m_graphicsQueue = m_logicalDevice.getQueue(0, m_queueIndices.GraphicsQueue.value());
+	m_presentQueue = m_logicalDevice.getQueue(0, m_queueIndices.PresentQueue.value());
 }

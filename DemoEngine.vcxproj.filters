@@ -94,4 +94,7 @@
     <FxCompile Include="DX\DX11\Shaders\CubeVS.hlsl" />
     <FxCompile Include="DX\DX11\Shaders\CubePS.hlsl" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include=".gitignore" />
+  </ItemGroup>
 </Project>
