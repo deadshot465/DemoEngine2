@@ -160,6 +160,8 @@
     <ClCompile Include="DX\DX11\SwapChainDX11.cpp" />
     <ClCompile Include="DX\WindowDX.cpp" />
     <ClCompile Include="GLVK\VK\GraphicsEngineVK.cpp" />
+    <ClCompile Include="GLVK\VK\ImageVK.cpp" />
+    <ClCompile Include="GLVK\VK\ShaderVK.cpp" />
     <ClCompile Include="GLVK\WindowGLVK.cpp" />
     <ClCompile Include="Interfaces\ISwapChainDX.cpp" />
     <ClCompile Include="Interfaces\IWindow.cpp" />
@@ -174,8 +176,11 @@
     <ClInclude Include="DX\UtilsDX.h" />
     <ClInclude Include="DX\WindowDX.h" />
     <ClInclude Include="GLVK\VK\GraphicsEngineVK.h" />
+    <ClInclude Include="GLVK\VK\ImageVK.h" />
+    <ClInclude Include="GLVK\VK\ShaderVK.h" />
     <ClInclude Include="GLVK\VK\UtilsVK.h" />
     <ClInclude Include="GLVK\WindowGLVK.h" />
+    <ClInclude Include="Interfaces\IMappableVK.h" />
     <ClInclude Include="Interfaces\ISwapChainDX.h" />
     <ClInclude Include="Interfaces\IWindow.h" />
     <ClInclude Include="UtilsCommon.h" />
@@ -212,6 +217,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore" />
+    <None Include="GLVK\VK\Shaders\basicShader.frag" />
+    <None Include="GLVK\VK\Shaders\basicShader.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

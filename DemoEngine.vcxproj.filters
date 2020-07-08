@@ -45,6 +45,12 @@
     <ClCompile Include="GLVK\VK\GraphicsEngineVK.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="GLVK\VK\ImageVK.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="GLVK\VK\ShaderVK.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Interfaces\IWindow.h">
@@ -89,6 +95,15 @@
     <ClInclude Include="GLVK\VK\UtilsVK.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="GLVK\VK\ImageVK.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Interfaces\IMappableVK.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="GLVK\VK\ShaderVK.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="DX\DX11\Shaders\CubeVS.hlsl" />
@@ -96,5 +111,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore" />
+    <None Include="GLVK\VK\Shaders\basicShader.frag" />
+    <None Include="GLVK\VK\Shaders\basicShader.vert" />
   </ItemGroup>
 </Project>

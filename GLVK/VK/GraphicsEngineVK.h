@@ -1,6 +1,7 @@
 #pragma once
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <memory>
 #include <vector>
 #include <vulkan/vulkan.hpp>
 #include "UtilsVK.h"
@@ -9,6 +10,9 @@ namespace GLVK
 {
 	namespace VK
 	{
+		class Image;
+		class Shader;
+
 		class GraphicsEngine
 		{
 		public:
@@ -37,6 +41,7 @@ namespace GLVK
 			void GetPhysicalDevice();
 			void CreateLogicalDevice();
 			void CreateSwapchain();
+			void LoadShader();
 
 			inline static const std::vector<const char*> m_enabledLayerNames = {
 				"VK_LAYER_KHRONOS_validation"
@@ -56,8 +61,14 @@ namespace GLVK
 			QueueIndices m_queueIndices = {};
 			vk::Device m_logicalDevice = nullptr;
 			vk::SwapchainKHR m_swapchain = nullptr;
+			vk::Format m_format = {};
+			vk::Extent2D m_extent = {};
 			vk::Queue m_graphicsQueue = nullptr;
 			vk::Queue m_presentQueue = nullptr;
+
+			std::vector<std::unique_ptr<Image>> m_images;
+			std::unique_ptr<Shader> m_vertexShader;
+			std::unique_ptr<Shader> m_fragmentShader;
 		};
 	}
 }

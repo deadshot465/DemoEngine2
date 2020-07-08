@@ -6,6 +6,8 @@
 #include <numeric>
 #include <cassert>
 #include <cstring>
+#include "ImageVK.h"
+#include "ShaderVK.h"
 
 GLVK::VK::GraphicsEngine::GraphicsEngine(GLFWwindow* window, int width, int height)
 	: m_handle(window), m_width(width), m_height(height)
@@ -17,6 +19,8 @@ GLVK::VK::GraphicsEngine::GraphicsEngine(GLFWwindow* window, int width, int heig
 		CreateSurface();
 		GetPhysicalDevice();
 		CreateLogicalDevice();
+		CreateSwapchain();
+		LoadShader();
 	}
 	catch (const std::exception&)
 	{
@@ -27,6 +31,8 @@ GLVK::VK::GraphicsEngine::GraphicsEngine(GLFWwindow* window, int width, int heig
 GLVK::VK::GraphicsEngine::~GraphicsEngine()
 {
 	Dispose();
+	m_vertexShader.reset();
+	m_fragmentShader.reset();
 	m_logicalDevice.destroy();
 	m_instance.destroySurfaceKHR(m_surface);
 	auto dispatcher = vk::DispatchLoaderDynamic();
@@ -92,7 +98,10 @@ bool GLVK::VK::GraphicsEngine::IsDeviceSuitable(const vk::PhysicalDevice& device
 	auto features = device.getFeatures();
 	auto feature_supports = features.samplerAnisotropy && features.sampleRateShading;
 
-	return feature_supports && CheckExtensionSupport(device);
+	auto swapchain_details = GetSwapchainDetails(device, surface);
+	auto is_swapchain_adequate = swapchain_details.Formats.size() > 0 && swapchain_details.PresentModes.size() > 0;
+
+	return feature_supports && CheckExtensionSupport(device) && is_swapchain_adequate;
 }
 
 GLVK::VK::QueueIndices GLVK::VK::GraphicsEngine::GetQueueIndices(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface) noexcept
@@ -135,7 +144,11 @@ bool GLVK::VK::GraphicsEngine::CheckExtensionSupport(const vk::PhysicalDevice& d
 
 void GLVK::VK::GraphicsEngine::Dispose()
 {
-
+	for (auto& image : m_images)
+	{
+		image.reset();
+	}
+	m_logicalDevice.destroySwapchainKHR(m_swapchain);
 }
 
 void GLVK::VK::GraphicsEngine::CreateInstance()
@@ -232,7 +245,7 @@ void GLVK::VK::GraphicsEngine::CreateLogicalDevice()
 	info.ppEnabledExtensionNames = m_enabledExtensions.data();
 	info.pQueueCreateInfos = queue_create_infos.data();
 	info.queueCreateInfoCount = static_cast<uint32_t>(queue_create_infos.size());
-	
+
 	if (m_debug)
 	{
 		info.enabledLayerCount = static_cast<uint32_t>(m_enabledLayerNames.size());
@@ -242,37 +255,74 @@ void GLVK::VK::GraphicsEngine::CreateLogicalDevice()
 	m_logicalDevice = m_physicalDevice.createDevice(info);
 	m_graphicsQueue = m_logicalDevice.getQueue(0, m_queueIndices.GraphicsQueue.value());
 	m_presentQueue = m_logicalDevice.getQueue(0, m_queueIndices.PresentQueue.value());
+}
 
 void GLVK::VK::GraphicsEngine::CreateSwapchain()
 {
-    auto details = GetSwapchainDetails(m_physicalDevice, m_surface);
-    auto format = GetFormat(details.Formats);
-    auto present_mode = GetPresentMode(details.PresentModes);
-    auto extent = GetExtent(details.SurfaceCapabilities, m_handle);
+	auto details = GetSwapchainDetails(m_physicalDevice, m_surface);
+	auto format = GetFormat(details.Formats);
+	auto present_mode = GetPresentMode(details.PresentModes);
+	auto extent = GetExtent(details.SurfaceCapabilities, m_handle);
 
-    uint32_t min_image_count = 0;
-    if (details.SurfaceCapabilities.maxImageCount > 0)
-    {
-        min_image_count = std::clamp<uint32_t>(details.SurfaceCapabilities.minImageCount + 1, details.SurfaceCapabilities.minImageCount, details.SurfaceCapabilities.maxImageCount);
-    }
-    else
-    {
-        min_image_count = details.SurfaceCapabilities.minImageCount + 1;
-    }
+	uint32_t min_image_count = 0;
+	if (details.SurfaceCapabilities.maxImageCount > 0)
+	{
+		min_image_count = std::clamp<uint32_t>(details.SurfaceCapabilities.minImageCount + 1, details.SurfaceCapabilities.minImageCount, details.SurfaceCapabilities.maxImageCount);
+	}
+	else
+	{
+		min_image_count = details.SurfaceCapabilities.minImageCount + 1;
+	}
 
-    auto info = vk::SwapchainCreateInfoKHR();
-    info.oldSwapchain = nullptr;
-    info.clipped = VK_FALSE;
-    info.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
-    info.imageArrayLayers = 1;
-    info.imageColorSpace = format.colorSpace;
-    info.imageExtent = extent;
-    info.imageFormat = format.format;
-    info.imageUsage = vk::ImageUsageFlagBits::eColorAttachment;
-    info.minImageCount = min_image_count;
-    info.preTransform = details.SurfaceCapabilities.currentTransform;
-    info.presentMode = present_mode;
-    info.surface = m_surface;
+	auto info = vk::SwapchainCreateInfoKHR();
+	info.oldSwapchain = nullptr;
+	info.clipped = VK_FALSE;
+	info.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
+	info.imageArrayLayers = 1;
+	info.imageColorSpace = format.colorSpace;
+	info.imageExtent = extent;
+	info.imageFormat = format.format;
+	info.imageUsage = vk::ImageUsageFlagBits::eColorAttachment;
+	info.minImageCount = min_image_count;
+	info.preTransform = details.SurfaceCapabilities.currentTransform;
+	info.presentMode = present_mode;
+	info.surface = m_surface;
+	
+	uint32_t indices[] = {
+		m_queueIndices.GraphicsQueue.value(),
+		m_queueIndices.PresentQueue.value()
+	};
+
+	if (indices[0] != indices[1])
+	{
+		info.imageSharingMode = vk::SharingMode::eConcurrent;
+		info.queueFamilyIndexCount = 2;
+		info.pQueueFamilyIndices = indices;
+	}
+	else
+	{
+		info.imageSharingMode = vk::SharingMode::eExclusive;
+		info.queueFamilyIndexCount = 0;
+		info.pQueueFamilyIndices = nullptr;
+	}
+
+	m_swapchain = m_logicalDevice.createSwapchainKHR(info);
+	m_format = format.format;
+	m_extent = extent;
+
+	auto images = m_logicalDevice.getSwapchainImagesKHR(m_swapchain);
+	m_images.resize(images.size());
+	for (auto i = 0; i < images.size(); ++i)
+	{
+		m_images[i] = std::make_unique<Image>(m_logicalDevice, images[i]);
+		m_images[i]->CreateImageView(m_format, vk::ImageAspectFlagBits::eColor, 1, vk::ImageViewType::e2D);
+	}
+}
+
+void GLVK::VK::GraphicsEngine::LoadShader()
+{
+	m_vertexShader = std::make_unique<Shader>(vk::ShaderStageFlagBits::eVertex, "GLVK/VK/Shaders/vert.spv", m_logicalDevice);
+	m_fragmentShader = std::make_unique<Shader>(vk::ShaderStageFlagBits::eFragment, "GLVK/VK/Shaders/frag.spv", m_logicalDevice);
 }
 
 GLVK::VK::SwapchainDetails GLVK::VK::GraphicsEngine::GetSwapchainDetails(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface) {
