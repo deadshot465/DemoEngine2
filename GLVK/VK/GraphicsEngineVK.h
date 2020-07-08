@@ -10,6 +10,7 @@ namespace GLVK
 {
 	namespace VK
 	{
+		class Buffer;
 		class Image;
 		class Shader;
 
@@ -23,6 +24,9 @@ namespace GLVK
 			void Render();
 		
 		private:
+			std::vector<Vertex> m_cubeVertices;
+			std::vector<uint32_t> m_cubeIndices;
+
 			static std::vector<const char*> GetRequiredExtensions(bool debug) noexcept;
 			static bool CheckLayerSupport() noexcept;
 			static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
@@ -42,6 +46,10 @@ namespace GLVK
 			void CreateLogicalDevice();
 			void CreateSwapchain();
 			void LoadShader();
+			void LoadDefaultCube();
+			void CreateBuffers();
+			void CreateVertexBuffers();
+			void CreateIndexBuffers();
 
 			inline static const std::vector<const char*> m_enabledLayerNames = {
 				"VK_LAYER_KHRONOS_validation"
@@ -69,6 +77,9 @@ namespace GLVK
 			std::vector<std::unique_ptr<Image>> m_images;
 			std::unique_ptr<Shader> m_vertexShader;
 			std::unique_ptr<Shader> m_fragmentShader;
+			std::unique_ptr<Buffer> m_vertexBuffer;
+			std::unique_ptr<Buffer> m_intermediateBuffer;
+			std::unique_ptr<Buffer> m_indexBuffer;
 		};
 	}
 }

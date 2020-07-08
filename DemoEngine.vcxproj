@@ -159,6 +159,7 @@
     <ClCompile Include="DX\DX11\GraphicsEngineDX11.cpp" />
     <ClCompile Include="DX\DX11\SwapChainDX11.cpp" />
     <ClCompile Include="DX\WindowDX.cpp" />
+    <ClCompile Include="GLVK\VK\BufferVK.cpp" />
     <ClCompile Include="GLVK\VK\GraphicsEngineVK.cpp" />
     <ClCompile Include="GLVK\VK\ImageVK.cpp" />
     <ClCompile Include="GLVK\VK\ShaderVK.cpp" />
@@ -175,6 +176,7 @@
     <ClInclude Include="DX\DX11\UtilsDX11.h" />
     <ClInclude Include="DX\UtilsDX.h" />
     <ClInclude Include="DX\WindowDX.h" />
+    <ClInclude Include="GLVK\VK\BufferVK.h" />
     <ClInclude Include="GLVK\VK\GraphicsEngineVK.h" />
     <ClInclude Include="GLVK\VK\ImageVK.h" />
     <ClInclude Include="GLVK\VK\ShaderVK.h" />

@@ -85,5 +85,53 @@ namespace GLVK
 				throw std::runtime_error(message.data());
 			}
 		}
+
+		/// <summary>
+		/// Create a single time only command buffer and begin recording.
+		/// </summary>
+		/// <param name="device">The logical device.</param>
+		/// <param name="commandPool">The command pool.</param>
+		/// <returns>A created single time only command buffer.</returns>
+		inline vk::CommandBuffer CreateSingleTimeBuffer(const vk::Device& device, const vk::CommandPool& commandPool)
+		{
+			auto alloc_info = vk::CommandBufferAllocateInfo();
+			alloc_info.commandBufferCount = 1;
+			alloc_info.commandPool = commandPool;
+			alloc_info.level = vk::CommandBufferLevel::ePrimary;
+
+			auto buffer = device.allocateCommandBuffers(alloc_info)[0];
+
+			auto begin_info = vk::CommandBufferBeginInfo();
+			begin_info.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+			begin_info.pInheritanceInfo = nullptr;
+			
+			buffer.begin(begin_info);
+			return buffer;
+		}
+
+		/// <summary>
+		/// End the single time command buffer and submit with the provided queue.
+		/// </summary>
+		/// <param name="commandBuffer">The command buffer to execute.</param>
+		/// <param name="device">The logical device.</param>
+		/// <param name="commandPool">The command pool.</param>
+		/// <param name="graphicsQueue">The queue used to submit the command buffer.</param>
+		inline void ExecuteCommandBuffer(vk::CommandBuffer& commandBuffer, const vk::Device& device, const vk::CommandPool& commandPool, const vk::Queue& graphicsQueue)
+		{
+			commandBuffer.end();
+
+			auto submit_info = vk::SubmitInfo();
+			submit_info.commandBufferCount = 1;
+			submit_info.pCommandBuffers = &commandBuffer;
+			submit_info.pSignalSemaphores = nullptr;
+			submit_info.pWaitDstStageMask = nullptr;
+			submit_info.pWaitSemaphores = nullptr;
+			submit_info.signalSemaphoreCount = 0;
+			submit_info.waitSemaphoreCount = 0;
+
+			graphicsQueue.submit(submit_info, nullptr);
+			graphicsQueue.waitIdle();
+			device.freeCommandBuffers(commandPool, commandBuffer);
+		}
 	}
 }
