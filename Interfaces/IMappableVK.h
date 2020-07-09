@@ -22,6 +22,7 @@ namespace GLVK
 				}
 			}
 
+		protected:
 			uint32_t GetMemoryTypeIndex(const vk::PhysicalDevice& physicalDevice, uint32_t memoryType, const vk::MemoryPropertyFlags& memoryProperties)
 			{
 				auto properties = physicalDevice.getMemoryProperties();
@@ -36,11 +37,13 @@ namespace GLVK
 				return 0;
 			}
 
-			const vk::DeviceMemory& MapDeviceMemory(const vk::MemoryRequirements& requirements)
+			const vk::DeviceMemory& MapDeviceMemory(const vk::MemoryRequirements& requirements, const vk::PhysicalDevice& physicalDevice, const vk::MemoryPropertyFlags& memoryProperties)
 			{
 				auto allocate_info = vk::MemoryAllocateInfo();
 				allocate_info.allocationSize = requirements.size;
-				requirements.
+				allocate_info.memoryTypeIndex = GetMemoryTypeIndex(physicalDevice, requirements.memoryTypeBits, memoryProperties);
+				m_deviceMemory = m_logicalDevice.allocateMemory(allocate_info);
+				return m_deviceMemory;
 			}
 
 		protected:

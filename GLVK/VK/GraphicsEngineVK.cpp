@@ -6,6 +6,7 @@
 #include <numeric>
 #include <cassert>
 #include <cstring>
+#include "BufferVK.h"
 #include "ImageVK.h"
 #include "ShaderVK.h"
 
@@ -390,8 +391,16 @@ void GLVK::VK::GraphicsEngine::CreateBuffers()
 
 void GLVK::VK::GraphicsEngine::CreateVertexBuffers()
 {
-	vk::DeviceSize buffer_size = sizeof(Vertex) * m_cubeVertices.size();
+	static const vk::DeviceSize buffer_size = sizeof(Vertex) * m_cubeVertices.size();
+	m_intermediateBuffer.reset(new Buffer(m_logicalDevice, vk::BufferUsageFlagBits::eTransferSrc, buffer_size));
+	auto memory = m_intermediateBuffer->Map(m_physicalDevice, vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible);
+	void* mapped = m_logicalDevice.mapMemory(memory, 0, buffer_size);
+	memcpy(mapped, m_cubeVertices.data(), buffer_size);
+	m_logicalDevice.unmapMemory(memory);
 
+	m_vertexBuffer = std::make_unique<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, buffer_size);
+	m_vertexBuffer->Map(m_physicalDevice, vk::MemoryPropertyFlagBits::eDeviceLocal);
+	m_vertexBuffer->CopyBufferToBuffer(m_intermediateBuffer->GetBuffer(), buffer_size, nullptr, nullptr);
 }
 
 void GLVK::VK::GraphicsEngine::CreateIndexBuffers()

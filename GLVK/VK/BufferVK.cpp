@@ -19,7 +19,7 @@ GLVK::VK::Buffer::~Buffer()
 	m_logicalDevice.destroyBuffer(m_buffer);
 }
 
-void GLVK::VK::Buffer::CopyBufferToBuffer(const vk::Buffer& srcBuffer, vk::DeviceSize& size, const vk::CommandPool& commandPool, const vk::Queue& graphicsQueue)
+void GLVK::VK::Buffer::CopyBufferToBuffer(const vk::Buffer& srcBuffer, vk::DeviceSize size, const vk::CommandPool& commandPool, const vk::Queue& graphicsQueue)
 {
 	auto info = vk::BufferCopy();
 	info.dstOffset = 0;
@@ -29,4 +29,9 @@ void GLVK::VK::Buffer::CopyBufferToBuffer(const vk::Buffer& srcBuffer, vk::Devic
 	auto cmd_buffer = CreateSingleTimeBuffer(m_logicalDevice, commandPool);
 	cmd_buffer.copyBuffer(srcBuffer, m_buffer, info);
 	ExecuteCommandBuffer(cmd_buffer, m_logicalDevice, commandPool, graphicsQueue);
+}
+
+const vk::DeviceMemory &GLVK::VK::Buffer::Map(const vk::PhysicalDevice& physicalDevice, const vk::MemoryPropertyFlags& memoryProperties) {
+    auto requirements = m_logicalDevice.getBufferMemoryRequirements(m_buffer);
+    return MapDeviceMemory(requirements, physicalDevice, memoryProperties);
 }
