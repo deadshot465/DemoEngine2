@@ -23,7 +23,7 @@ void GLVK::VK::Pipeline::CreateRenderPass(const vk::Format& graphicsFormat, cons
 	attachments[0].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
 	attachments[0].storeOp = vk::AttachmentStoreOp::eStore;
 
-	attachments[1].finalLayout = vk::ImageLayout::eDepthAttachmentOptimal;
+	attachments[1].finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 	attachments[1].format = depthFormat;
 	attachments[1].initialLayout = vk::ImageLayout::eUndefined;
 	attachments[1].loadOp = vk::AttachmentLoadOp::eClear;
@@ -55,7 +55,7 @@ void GLVK::VK::Pipeline::CreateRenderPass(const vk::Format& graphicsFormat, cons
 	
 	auto depth_attachment = vk::AttachmentReference();
 	depth_attachment.attachment = 1;
-	depth_attachment.layout = vk::ImageLayout::eDepthAttachmentOptimal;
+	depth_attachment.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 
 	auto resolve_attachment = vk::AttachmentReference();
 	resolve_attachment.attachment = 2;
@@ -77,6 +77,7 @@ void GLVK::VK::Pipeline::CreateRenderPass(const vk::Format& graphicsFormat, cons
 	info.pAttachments = attachments;
 	info.pDependencies = &subpass_dependency;
 	info.pSubpasses = &subpass_description;
+	info.subpassCount = 1;
 
 	m_renderPass = m_logicalDevice.createRenderPass(info);
 	m_ownedRenderPass = true;

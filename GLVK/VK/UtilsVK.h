@@ -70,6 +70,21 @@ namespace GLVK
 			}
 		};
 
+		struct MVP
+		{
+			glm::mat4 Model;
+			glm::mat4 View;
+			glm::mat4 Projection;
+		};
+
+		struct DirectionalLight
+		{
+			glm::vec4 Diffuse;
+			glm::vec3 LightDirection;
+			float AmbientIntensity;
+			float SpecularIntensity;
+		};
+
 		inline void ThrowIfFailed(VkResult result, std::string_view message)
 		{
 			if (result != VK_SUCCESS)

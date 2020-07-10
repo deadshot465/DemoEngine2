@@ -36,8 +36,11 @@ namespace GLVK
 			static bool CheckExtensionSupport(const vk::PhysicalDevice& device) noexcept;
 			static GLVK::VK::SwapchainDetails GetSwapchainDetails(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface);
 			static vk::Extent2D GetExtent(const vk::SurfaceCapabilitiesKHR& capabilities, GLFWwindow* handle) noexcept;
-			static vk::SurfaceFormatKHR GetFormat(const std::vector<vk::SurfaceFormatKHR>& formats) noexcept;
+			static vk::SurfaceFormatKHR GetSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& formats) noexcept;
 			static vk::PresentModeKHR GetPresentMode(const std::vector<vk::PresentModeKHR>& presentModes) noexcept;
+			static vk::Format ChooseDepthFormat(const vk::PhysicalDevice& physicalDevice, const std::vector<vk::Format>& formats, const vk::ImageTiling& imageTiling, const vk::FormatFeatureFlags& formatFeatures) noexcept;
+			static vk::Format GetDepthFormat(const vk::PhysicalDevice& physicalDevice, const vk::ImageTiling& imageTiling) noexcept;
+			static vk::SampleCountFlagBits GetMsaaSampleCounts(const vk::PhysicalDevice& physicalDevice);
 
 			void Initialize();
 			void Dispose();
@@ -54,6 +57,9 @@ namespace GLVK
 			void CreateIndexBuffers();
 			void CreateDescriptorLayout();
 			void CreateDescriptorSets();
+			void CreateDepthImage();
+			void CreateMultisamplingImage();
+			void CreateUniformBuffer();
 
 			inline static const std::vector<const char*> m_enabledLayerNames = {
 				"VK_LAYER_KHRONOS_validation"
@@ -69,6 +75,7 @@ namespace GLVK
 			vk::Instance m_instance = nullptr;
 			vk::DebugUtilsMessengerEXT m_debugUtils = nullptr;
 			vk::PhysicalDevice m_physicalDevice = nullptr;
+			vk::SampleCountFlagBits m_msaaSampleCount = {};
 			vk::SurfaceKHR m_surface = nullptr;
 			QueueIndices m_queueIndices = {};
 			vk::Device m_logicalDevice = nullptr;
@@ -88,7 +95,14 @@ namespace GLVK
 			std::unique_ptr<Buffer> m_vertexBuffer = nullptr;
 			std::unique_ptr<Buffer> m_intermediateBuffer = nullptr;
 			std::unique_ptr<Buffer> m_indexBuffer = nullptr;
+			std::unique_ptr<Buffer> m_mvpBuffer = nullptr;
+			std::unique_ptr<Buffer> m_directionalLightBuffer = nullptr;
+			std::unique_ptr<Image> m_depthImage = nullptr;
+			std::unique_ptr<Image> m_msaaImage = nullptr;
 			std::unique_ptr<Pipeline> m_pipeline = nullptr;
+
+			MVP m_mvp = {};
+			DirectionalLight m_directionalLight = {};
 		};
 	}
 }

@@ -1,5 +1,6 @@
 #include "GraphicsEngineVK.h"
 #include <algorithm>
+#include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <string>
 #include <unordered_set>
@@ -163,8 +164,10 @@ void GLVK::VK::GraphicsEngine::Initialize()
 		CreateSwapchain();
 		CreateDescriptorLayout();
 		CreateDescriptorSets();
+		CreateDepthImage();
+		CreateMultisamplingImage();
 		m_pipeline = std::make_unique<Pipeline>(m_logicalDevice);
-		m_pipeline->CreateRenderPass(m_format, {}, vk::SampleCountFlagBits::e1);
+		m_pipeline->CreateRenderPass(m_format, GetDepthFormat(m_physicalDevice, vk::ImageTiling::eOptimal), m_msaaSampleCount);
 	}
 	catch (const std::exception&)
 	{
@@ -174,6 +177,8 @@ void GLVK::VK::GraphicsEngine::Initialize()
 
 void GLVK::VK::GraphicsEngine::Dispose()
 {
+	m_msaaImage.reset();
+	m_depthImage.reset();
 	m_logicalDevice.destroyDescriptorPool(m_descriptorPool);
 
 	for (auto& image : m_images)
@@ -243,6 +248,7 @@ void GLVK::VK::GraphicsEngine::GetPhysicalDevice()
 		if (IsDeviceSuitable(device, m_surface))
 		{
 			m_physicalDevice = device;
+			m_msaaSampleCount = GetMsaaSampleCounts(device);
 			break;
 		}
 	}
@@ -292,7 +298,7 @@ void GLVK::VK::GraphicsEngine::CreateLogicalDevice()
 void GLVK::VK::GraphicsEngine::CreateSwapchain()
 {
 	auto details = GetSwapchainDetails(m_physicalDevice, m_surface);
-	auto format = GetFormat(details.Formats);
+	auto format = GetSurfaceFormat(details.Formats);
 	auto present_mode = GetPresentMode(details.PresentModes);
 	auto extent = GetExtent(details.SurfaceCapabilities, m_handle);
 
@@ -488,6 +494,35 @@ void GLVK::VK::GraphicsEngine::CreateDescriptorSets()
 	m_descriptorSets = m_logicalDevice.allocateDescriptorSets(allocate_info);
 }
 
+void GLVK::VK::GraphicsEngine::CreateDepthImage()
+{
+	auto format = GetDepthFormat(m_physicalDevice, vk::ImageTiling::eOptimal);
+	m_depthImage = std::make_unique<Image>(m_logicalDevice, format, m_msaaSampleCount, m_extent, vk::ImageType::e2D, 1, vk::ImageUsageFlagBits::eDepthStencilAttachment);
+
+	m_depthImage->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eDeviceLocal);
+	m_depthImage->CreateImageView(format, vk::ImageAspectFlagBits::eDepth, 1, vk::ImageViewType::e2D);
+	m_depthImage->TransitionLayout(vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthAttachmentOptimal, m_commandPool, m_graphicsQueue, vk::ImageAspectFlagBits::eDepth, 1);
+}
+
+void GLVK::VK::GraphicsEngine::CreateMultisamplingImage()
+{
+	m_msaaImage = std::make_unique<Image>(m_logicalDevice, m_format, m_msaaSampleCount, m_extent, vk::ImageType::e2D, 1, vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment);
+
+	m_msaaImage->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eDeviceLocal);
+	m_msaaImage->CreateImageView(m_format, vk::ImageAspectFlagBits::eColor, 1, vk::ImageViewType::e2D);
+	m_msaaImage->TransitionLayout(vk::ImageLayout::eUndefined, vk::ImageLayout::eColorAttachmentOptimal, m_commandPool, m_graphicsQueue, vk::ImageAspectFlagBits::eColor, 1);
+}
+
+void GLVK::VK::GraphicsEngine::CreateUniformBuffer()
+{
+	vk::DeviceSize mvp_size = sizeof(MVP);
+	m_mvpBuffer = std::make_unique<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eUniformBuffer, mvp_size);
+	auto mvp_memory = m_mvpBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+	auto mapped = m_logicalDevice.mapMemory(mvp_memory, 0, mvp_size);
+	memcpy(mapped, &m_mvp, mvp_size);
+	m_logicalDevice.unmapMemory(mvp_memory);
+}
+
 GLVK::VK::SwapchainDetails GLVK::VK::GraphicsEngine::GetSwapchainDetails(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface) {
     auto details = SwapchainDetails();
     details.SurfaceCapabilities = device.getSurfaceCapabilitiesKHR(surface);
@@ -516,7 +551,7 @@ vk::Extent2D GLVK::VK::GraphicsEngine::GetExtent(const vk::SurfaceCapabilitiesKH
     }
 }
 
-vk::SurfaceFormatKHR GLVK::VK::GraphicsEngine::GetFormat(const std::vector<vk::SurfaceFormatKHR> &formats) noexcept {
+vk::SurfaceFormatKHR GLVK::VK::GraphicsEngine::GetSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &formats) noexcept {
     for (const auto& format : formats)
     {
         if (format.format == vk::Format::eB8G8R8A8Unorm && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
@@ -539,3 +574,41 @@ GLVK::VK::GraphicsEngine::GetPresentMode(const std::vector<vk::PresentModeKHR> &
     }
     return fifo_support ? vk::PresentModeKHR::eFifo : vk::PresentModeKHR::eImmediate;
 }
+
+vk::Format GLVK::VK::GraphicsEngine::ChooseDepthFormat(const vk::PhysicalDevice& physicalDevice, const std::vector<vk::Format>& formats, const vk::ImageTiling& imageTiling, const vk::FormatFeatureFlags& formatFeatures) noexcept
+{
+	for (const auto& format : formats)
+	{
+		auto properties = physicalDevice.getFormatProperties(format);
+		if (imageTiling == vk::ImageTiling::eLinear && ((properties.linearTilingFeatures & formatFeatures) == formatFeatures))
+		{
+			return format;
+		}
+		else if (imageTiling == vk::ImageTiling::eOptimal && ((properties.optimalTilingFeatures & formatFeatures) == formatFeatures))
+		{
+			return format;
+		}
+	}
+	return formats[0];
+}
+
+vk::Format GLVK::VK::GraphicsEngine::GetDepthFormat(const vk::PhysicalDevice& physicalDevice, const vk::ImageTiling& imageTiling) noexcept
+{
+	return ChooseDepthFormat(physicalDevice, { vk::Format::eD32Sfloat, vk::Format::eD24UnormS8Uint }, imageTiling, vk::FormatFeatureFlagBits::eDepthStencilAttachment);
+}
+
+vk::SampleCountFlagBits GLVK::VK::GraphicsEngine::GetMsaaSampleCounts(const vk::PhysicalDevice& physicalDevice)
+{
+	auto properties = physicalDevice.getProperties();
+	auto sample_counts = std::min(properties.limits.sampledImageColorSampleCounts, properties.limits.sampledImageDepthSampleCounts);
+
+	if (sample_counts & vk::SampleCountFlagBits::e64) return vk::SampleCountFlagBits::e64;
+	if (sample_counts & vk::SampleCountFlagBits::e32) return vk::SampleCountFlagBits::e32;
+	if (sample_counts & vk::SampleCountFlagBits::e16) return vk::SampleCountFlagBits::e16;
+	if (sample_counts & vk::SampleCountFlagBits::e8) return vk::SampleCountFlagBits::e8;
+	if (sample_counts & vk::SampleCountFlagBits::e4) return vk::SampleCountFlagBits::e4;
+	if (sample_counts & vk::SampleCountFlagBits::e2) return vk::SampleCountFlagBits::e2;
+	return vk::SampleCountFlagBits::e1;
+}
+
+

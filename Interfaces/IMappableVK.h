@@ -22,6 +22,8 @@ namespace GLVK
 				}
 			}
 
+			virtual const vk::DeviceMemory& AllocateMemory(const vk::PhysicalDevice& physicalDevice, const vk::MemoryPropertyFlags& memoryProperties) = 0;
+
 		protected:
 			uint32_t GetMemoryTypeIndex(const vk::PhysicalDevice& physicalDevice, uint32_t memoryType, const vk::MemoryPropertyFlags& memoryProperties)
 			{
