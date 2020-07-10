@@ -13,6 +13,7 @@ namespace GLVK
 		class Buffer;
 		class Image;
 		class Shader;
+		class Pipeline;
 
 		class GraphicsEngine
 		{
@@ -38,6 +39,7 @@ namespace GLVK
 			static vk::SurfaceFormatKHR GetFormat(const std::vector<vk::SurfaceFormatKHR>& formats) noexcept;
 			static vk::PresentModeKHR GetPresentMode(const std::vector<vk::PresentModeKHR>& presentModes) noexcept;
 
+			void Initialize();
 			void Dispose();
 			void CreateInstance();
 			void SetupDebug();
@@ -50,6 +52,8 @@ namespace GLVK
 			void CreateBuffers();
 			void CreateVertexBuffers();
 			void CreateIndexBuffers();
+			void CreateDescriptorLayout();
+			void CreateDescriptorSets();
 
 			inline static const std::vector<const char*> m_enabledLayerNames = {
 				"VK_LAYER_KHRONOS_validation"
@@ -73,13 +77,18 @@ namespace GLVK
 			vk::Extent2D m_extent = {};
 			vk::Queue m_graphicsQueue = nullptr;
 			vk::Queue m_presentQueue = nullptr;
+			vk::CommandPool m_commandPool = nullptr;
+			vk::DescriptorSetLayout m_descriptorSetLayout = nullptr;
+			vk::DescriptorPool m_descriptorPool = nullptr;
+			std::vector<vk::DescriptorSet> m_descriptorSets;
 
 			std::vector<std::unique_ptr<Image>> m_images;
-			std::unique_ptr<Shader> m_vertexShader;
-			std::unique_ptr<Shader> m_fragmentShader;
-			std::unique_ptr<Buffer> m_vertexBuffer;
-			std::unique_ptr<Buffer> m_intermediateBuffer;
-			std::unique_ptr<Buffer> m_indexBuffer;
+			std::unique_ptr<Shader> m_vertexShader = nullptr;
+			std::unique_ptr<Shader> m_fragmentShader = nullptr;
+			std::unique_ptr<Buffer> m_vertexBuffer = nullptr;
+			std::unique_ptr<Buffer> m_intermediateBuffer = nullptr;
+			std::unique_ptr<Buffer> m_indexBuffer = nullptr;
+			std::unique_ptr<Pipeline> m_pipeline = nullptr;
 		};
 	}
 }

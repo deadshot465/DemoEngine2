@@ -37,3 +37,13 @@ inline std::string WstringToString(std::wstring_view string) noexcept
 	}
 	return ss.str();
 }
+
+#ifdef __APPLE__
+template <typename T, size_t N>
+inline size_t CountOf(const T (&arr)[N])
+{
+	static_assert(N >= 0);
+	return N;
+}
+#define _countof(arr) CountOf(arr)
+#endif

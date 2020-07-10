@@ -8,6 +8,7 @@
 #include <cstring>
 #include "BufferVK.h"
 #include "ImageVK.h"
+#include "PipelineVK.h"
 #include "ShaderVK.h"
 
 GLVK::VK::GraphicsEngine::GraphicsEngine(GLFWwindow* window, int width, int height)
@@ -20,9 +21,15 @@ GLVK::VK::GraphicsEngine::GraphicsEngine(GLFWwindow* window, int width, int heig
 		CreateSurface();
 		GetPhysicalDevice();
 		CreateLogicalDevice();
-		CreateSwapchain();
 		LoadShader();
+		LoadDefaultCube();
+
+		auto pool_info = vk::CommandPoolCreateInfo();
+		pool_info.queueFamilyIndex = m_queueIndices.GraphicsQueue.value();
+		m_commandPool = m_logicalDevice.createCommandPool(pool_info);
+
 		CreateBuffers();
+		Initialize();
 	}
 	catch (const std::exception&)
 	{
@@ -33,6 +40,8 @@ GLVK::VK::GraphicsEngine::GraphicsEngine(GLFWwindow* window, int width, int heig
 GLVK::VK::GraphicsEngine::~GraphicsEngine()
 {
 	Dispose();
+	m_logicalDevice.destroyDescriptorSetLayout(m_descriptorSetLayout);
+	m_logicalDevice.destroyCommandPool(m_commandPool);
 	if (m_intermediateBuffer) m_intermediateBuffer.reset();
 	m_indexBuffer.reset();
 	m_vertexBuffer.reset();
@@ -147,8 +156,26 @@ bool GLVK::VK::GraphicsEngine::CheckExtensionSupport(const vk::PhysicalDevice& d
 	return enabled_extensions.empty();
 }
 
+void GLVK::VK::GraphicsEngine::Initialize()
+{
+	try
+	{
+		CreateSwapchain();
+		CreateDescriptorLayout();
+		CreateDescriptorSets();
+		m_pipeline = std::make_unique<Pipeline>(m_logicalDevice);
+		m_pipeline->CreateRenderPass(m_format, {}, vk::SampleCountFlagBits::e1);
+	}
+	catch (const std::exception&)
+	{
+		throw;
+	}
+}
+
 void GLVK::VK::GraphicsEngine::Dispose()
 {
+	m_logicalDevice.destroyDescriptorPool(m_descriptorPool);
+
 	for (auto& image : m_images)
 	{
 		image.reset();
@@ -393,19 +420,72 @@ void GLVK::VK::GraphicsEngine::CreateVertexBuffers()
 {
 	static const vk::DeviceSize buffer_size = sizeof(Vertex) * m_cubeVertices.size();
 	m_intermediateBuffer.reset(new Buffer(m_logicalDevice, vk::BufferUsageFlagBits::eTransferSrc, buffer_size));
-	auto memory = m_intermediateBuffer->Map(m_physicalDevice, vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible);
+	auto memory = m_intermediateBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible);
 	void* mapped = m_logicalDevice.mapMemory(memory, 0, buffer_size);
 	memcpy(mapped, m_cubeVertices.data(), buffer_size);
 	m_logicalDevice.unmapMemory(memory);
 
 	m_vertexBuffer = std::make_unique<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, buffer_size);
-	m_vertexBuffer->Map(m_physicalDevice, vk::MemoryPropertyFlagBits::eDeviceLocal);
-	m_vertexBuffer->CopyBufferToBuffer(m_intermediateBuffer->GetBuffer(), buffer_size, nullptr, nullptr);
+	m_vertexBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eDeviceLocal);
+	m_vertexBuffer->CopyBufferToBuffer(m_intermediateBuffer->GetBuffer(), buffer_size, m_commandPool, m_graphicsQueue);
 }
 
 void GLVK::VK::GraphicsEngine::CreateIndexBuffers()
 {
 	vk::DeviceSize buffer_size = sizeof(uint32_t) * m_cubeIndices.size();
+	m_intermediateBuffer.reset(new Buffer(m_logicalDevice, vk::BufferUsageFlagBits::eTransferSrc, buffer_size));
+	auto memory = m_intermediateBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible);
+	void* mapped = m_logicalDevice.mapMemory(memory, 0, buffer_size);
+	memcpy(mapped, m_cubeIndices.data(), buffer_size);
+	m_logicalDevice.unmapMemory(memory);
+
+	m_indexBuffer = std::make_unique<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, buffer_size);
+	m_indexBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eDeviceLocal);
+	m_indexBuffer->CopyBufferToBuffer(m_intermediateBuffer->GetBuffer(), buffer_size, m_commandPool, m_graphicsQueue);
+}
+
+void GLVK::VK::GraphicsEngine::CreateDescriptorLayout()
+{
+	vk::DescriptorSetLayoutBinding bindings[2] = {};
+	bindings[0].binding = 0;
+	bindings[0].descriptorCount = 1;
+	bindings[0].descriptorType = vk::DescriptorType::eUniformBuffer;
+	bindings[0].pImmutableSamplers = nullptr;
+	bindings[0].stageFlags = vk::ShaderStageFlagBits::eVertex;
+	
+	bindings[1].binding = 1;
+	bindings[1].descriptorCount = 1;
+	bindings[1].descriptorType = vk::DescriptorType::eUniformBuffer;
+	bindings[1].pImmutableSamplers = nullptr;
+	bindings[1].stageFlags = vk::ShaderStageFlagBits::eFragment;
+
+	auto info = vk::DescriptorSetLayoutCreateInfo();
+	info.bindingCount = static_cast<uint32_t>(_countof(bindings));
+	info.pBindings = bindings;
+	m_descriptorSetLayout = m_logicalDevice.createDescriptorSetLayout(info);
+}
+
+void GLVK::VK::GraphicsEngine::CreateDescriptorSets()
+{
+	vk::DescriptorPoolSize pool_sizes[2] = {};
+	pool_sizes[0].descriptorCount = 1;
+	pool_sizes[0].type = vk::DescriptorType::eUniformBuffer;
+	pool_sizes[1].descriptorCount = 1;
+	pool_sizes[1].type = vk::DescriptorType::eUniformBuffer;
+
+	assert(m_images.size() > 0);
+	auto pool_info = vk::DescriptorPoolCreateInfo();
+	pool_info.maxSets = static_cast<uint32_t>(m_images.size());
+	pool_info.poolSizeCount = _countof(pool_sizes);
+	pool_info.pPoolSizes = pool_sizes;
+	m_descriptorPool = m_logicalDevice.createDescriptorPool(pool_info);
+
+	auto set_layouts = std::vector<vk::DescriptorSetLayout>(m_images.size(), m_descriptorSetLayout);
+	auto allocate_info = vk::DescriptorSetAllocateInfo();
+	allocate_info.descriptorPool = m_descriptorPool;
+	allocate_info.descriptorSetCount = static_cast<uint32_t>(set_layouts.size());
+	allocate_info.pSetLayouts = set_layouts.data();
+	m_descriptorSets = m_logicalDevice.allocateDescriptorSets(allocate_info);
 }
 
 GLVK::VK::SwapchainDetails GLVK::VK::GraphicsEngine::GetSwapchainDetails(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface) {

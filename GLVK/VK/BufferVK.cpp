@@ -31,7 +31,9 @@ void GLVK::VK::Buffer::CopyBufferToBuffer(const vk::Buffer& srcBuffer, vk::Devic
 	ExecuteCommandBuffer(cmd_buffer, m_logicalDevice, commandPool, graphicsQueue);
 }
 
-const vk::DeviceMemory &GLVK::VK::Buffer::Map(const vk::PhysicalDevice& physicalDevice, const vk::MemoryPropertyFlags& memoryProperties) {
+const vk::DeviceMemory &GLVK::VK::Buffer::AllocateMemory(const vk::PhysicalDevice& physicalDevice, const vk::MemoryPropertyFlags& memoryProperties) {
     auto requirements = m_logicalDevice.getBufferMemoryRequirements(m_buffer);
-    return MapDeviceMemory(requirements, physicalDevice, memoryProperties);
+	MapDeviceMemory(requirements, physicalDevice, memoryProperties);
+	m_logicalDevice.bindBufferMemory(m_buffer, m_deviceMemory, 0);
+	return m_deviceMemory;
 }

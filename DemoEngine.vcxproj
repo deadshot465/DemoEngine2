@@ -162,6 +162,7 @@
     <ClCompile Include="GLVK\VK\BufferVK.cpp" />
     <ClCompile Include="GLVK\VK\GraphicsEngineVK.cpp" />
     <ClCompile Include="GLVK\VK\ImageVK.cpp" />
+    <ClCompile Include="GLVK\VK\PipelineVK.cpp" />
     <ClCompile Include="GLVK\VK\ShaderVK.cpp" />
     <ClCompile Include="GLVK\WindowGLVK.cpp" />
     <ClCompile Include="Interfaces\ISwapChainDX.cpp" />
@@ -179,6 +180,7 @@
     <ClInclude Include="GLVK\VK\BufferVK.h" />
     <ClInclude Include="GLVK\VK\GraphicsEngineVK.h" />
     <ClInclude Include="GLVK\VK\ImageVK.h" />
+    <ClInclude Include="GLVK\VK\PipelineVK.h" />
     <ClInclude Include="GLVK\VK\ShaderVK.h" />
     <ClInclude Include="GLVK\VK\UtilsVK.h" />
     <ClInclude Include="GLVK\WindowGLVK.h" />

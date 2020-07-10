@@ -18,7 +18,7 @@ namespace GLVK
 			{
 				if (m_deviceMemory)
 				{
-					m_logicalDevice.unmapMemory(m_deviceMemory);
+					m_logicalDevice.freeMemory(m_deviceMemory);
 				}
 			}
 

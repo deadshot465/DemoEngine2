@@ -13,7 +13,7 @@ namespace GLVK
 			virtual ~Buffer();
 
 			void CopyBufferToBuffer(const vk::Buffer& srcBuffer, vk::DeviceSize size, const vk::CommandPool& commandPool, const vk::Queue& graphicsQueue);
-			const vk::DeviceMemory& Map(const vk::PhysicalDevice& physicalDevice, const vk::MemoryPropertyFlags& memoryProperties);
+			const vk::DeviceMemory& AllocateMemory(const vk::PhysicalDevice& physicalDevice, const vk::MemoryPropertyFlags& memoryProperties);
 			const vk::Buffer& GetBuffer() const noexcept
             {
 			    return m_buffer;
