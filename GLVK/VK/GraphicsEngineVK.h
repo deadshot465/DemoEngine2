@@ -59,7 +59,7 @@ namespace GLVK
 			void CreateDescriptorSets();
 			void CreateDepthImage();
 			void CreateMultisamplingImage();
-			void CreateUniformBuffer();
+			void CreateUniformBuffers();
 
 			inline static const std::vector<const char*> m_enabledLayerNames = {
 				"VK_LAYER_KHRONOS_validation"
@@ -95,8 +95,8 @@ namespace GLVK
 			std::unique_ptr<Buffer> m_vertexBuffer = nullptr;
 			std::unique_ptr<Buffer> m_intermediateBuffer = nullptr;
 			std::unique_ptr<Buffer> m_indexBuffer = nullptr;
-			std::unique_ptr<Buffer> m_mvpBuffer = nullptr;
-			std::unique_ptr<Buffer> m_directionalLightBuffer = nullptr;
+			std::vector<std::unique_ptr<Buffer>> m_mvpBuffers;
+			std::vector<std::unique_ptr<Buffer>> m_directionalLightBuffers;
 			std::unique_ptr<Image> m_depthImage = nullptr;
 			std::unique_ptr<Image> m_msaaImage = nullptr;
 			std::unique_ptr<Pipeline> m_pipeline = nullptr;

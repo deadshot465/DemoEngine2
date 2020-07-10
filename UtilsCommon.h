@@ -5,6 +5,11 @@
 #include <string_view>
 #include <vector>
 
+enum class BlendMode
+{
+	None, Alpha, Add, Subtract, Replace, Multiply, Lighten, Darken, Screen, End
+};
+
 template <typename T = char>
 inline std::vector<T> ReadFromFile(std::string_view filePath, bool isBinary = true)
 {

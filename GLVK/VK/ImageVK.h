@@ -23,7 +23,6 @@ namespace GLVK
 		private:
 			vk::Image m_image = nullptr;
 			vk::ImageView m_imageView = nullptr;
-			bool m_ownedImage = false;
 		};
 	}
 }

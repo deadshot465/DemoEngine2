@@ -33,7 +33,6 @@ GLVK::VK::Image::Image(const vk::Device& device, const vk::Format& format, const
 	info.usage = imageUsage;
 
 	m_image = m_logicalDevice.createImage(info);
-	m_ownedImage = true;
 }
 
 GLVK::VK::Image::~Image()
@@ -47,9 +46,6 @@ GLVK::VK::Image::~Image()
 	{
 		m_logicalDevice.destroyImage(m_image);
 	}
-
-	if (m_ownedImage)
-		m_logicalDevice.destroyImage(m_image);
 }
 
 void GLVK::VK::Image::CreateImageView(const vk::Format& format, const vk::ImageAspectFlags& aspectMask, uint32_t levelCount, const vk::ImageViewType& imageViewType)

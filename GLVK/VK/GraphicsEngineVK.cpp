@@ -166,8 +166,13 @@ void GLVK::VK::GraphicsEngine::Initialize()
 		CreateDescriptorSets();
 		CreateDepthImage();
 		CreateMultisamplingImage();
+		CreateUniformBuffers();
 		m_pipeline = std::make_unique<Pipeline>(m_logicalDevice);
 		m_pipeline->CreateRenderPass(m_format, GetDepthFormat(m_physicalDevice, vk::ImageTiling::eOptimal), m_msaaSampleCount);
+		m_pipeline->CreateGraphicPipelines(m_descriptorSetLayout, m_msaaSampleCount, {
+			m_vertexShader->GetShaderStageInfo(),
+			m_fragmentShader->GetShaderStageInfo()
+			});
 	}
 	catch (const std::exception&)
 	{
@@ -177,6 +182,14 @@ void GLVK::VK::GraphicsEngine::Initialize()
 
 void GLVK::VK::GraphicsEngine::Dispose()
 {
+	m_pipeline.reset();
+
+	for (auto i = 0; i < m_images.size(); ++i)
+	{
+		m_mvpBuffers[i].reset();
+		m_directionalLightBuffers[i].reset();
+	}
+
 	m_msaaImage.reset();
 	m_depthImage.reset();
 	m_logicalDevice.destroyDescriptorPool(m_descriptorPool);
@@ -492,6 +505,40 @@ void GLVK::VK::GraphicsEngine::CreateDescriptorSets()
 	allocate_info.descriptorSetCount = static_cast<uint32_t>(set_layouts.size());
 	allocate_info.pSetLayouts = set_layouts.data();
 	m_descriptorSets = m_logicalDevice.allocateDescriptorSets(allocate_info);
+
+	for (auto i = 0; i < m_descriptorSets.size(); ++i)
+	{
+		auto mvp_buffer_info = vk::DescriptorBufferInfo();
+		mvp_buffer_info.buffer = m_mvpBuffers[i]->GetBuffer();
+		mvp_buffer_info.offset = 0;
+		mvp_buffer_info.range = sizeof(MVP);
+		
+		auto directional_light_buffer_info = vk::DescriptorBufferInfo();
+		directional_light_buffer_info.buffer = m_directionalLightBuffers[i]->GetBuffer();
+		directional_light_buffer_info.offset = 0;
+		directional_light_buffer_info.range = sizeof(DirectionalLight);
+
+		auto write_descriptors = std::vector<vk::WriteDescriptorSet>(2);
+		write_descriptors[0].descriptorCount = 1;
+		write_descriptors[0].descriptorType = vk::DescriptorType::eUniformBuffer;
+		write_descriptors[0].dstArrayElement = 0;
+		write_descriptors[0].dstBinding = 0;
+		write_descriptors[0].dstSet = m_descriptorSets[i];
+		write_descriptors[0].pBufferInfo = &mvp_buffer_info;
+		write_descriptors[0].pImageInfo = nullptr;
+		write_descriptors[0].pTexelBufferView = nullptr;
+		
+		write_descriptors[1].descriptorCount = 1;
+		write_descriptors[1].descriptorType = vk::DescriptorType::eUniformBuffer;
+		write_descriptors[1].dstArrayElement = 0;
+		write_descriptors[1].dstBinding = 1;
+		write_descriptors[1].dstSet = m_descriptorSets[i];
+		write_descriptors[1].pBufferInfo = &directional_light_buffer_info;
+		write_descriptors[1].pImageInfo = nullptr;
+		write_descriptors[1].pTexelBufferView = nullptr;
+
+		m_logicalDevice.updateDescriptorSets(write_descriptors, {});
+	}
 }
 
 void GLVK::VK::GraphicsEngine::CreateDepthImage()
@@ -513,14 +560,42 @@ void GLVK::VK::GraphicsEngine::CreateMultisamplingImage()
 	m_msaaImage->TransitionLayout(vk::ImageLayout::eUndefined, vk::ImageLayout::eColorAttachmentOptimal, m_commandPool, m_graphicsQueue, vk::ImageAspectFlagBits::eColor, 1);
 }
 
-void GLVK::VK::GraphicsEngine::CreateUniformBuffer()
+void GLVK::VK::GraphicsEngine::CreateUniformBuffers()
 {
 	vk::DeviceSize mvp_size = sizeof(MVP);
-	m_mvpBuffer = std::make_unique<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eUniformBuffer, mvp_size);
-	auto mvp_memory = m_mvpBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-	auto mapped = m_logicalDevice.mapMemory(mvp_memory, 0, mvp_size);
-	memcpy(mapped, &m_mvp, mvp_size);
-	m_logicalDevice.unmapMemory(mvp_memory);
+	vk::DeviceSize directional_light_size = sizeof(DirectionalLight);
+
+	auto rotate_x = glm::rotate(glm::mat4(1.0f), glm::radians(45.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+	auto rotate_y = glm::rotate(glm::mat4(1.0f), glm::radians(-45.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+	auto rotate_z = glm::rotate(glm::mat4(1.0f), glm::radians(45.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	m_mvp.Model = rotate_z * rotate_y * rotate_x * glm::mat4(1.0f);
+	m_mvp.View = glm::lookAt(glm::vec3(0.0f, 0.0f, -10.0f), glm::vec3(0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+	m_mvp.Projection = glm::perspective(glm::radians(45.0f), static_cast<float>(m_width) / static_cast<float>(m_height), 0.1f, 100.0f);
+
+	m_mvpBuffers.resize(m_images.size());
+	for (auto& buffer : m_mvpBuffers)
+	{
+		buffer = std::make_unique<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eUniformBuffer, mvp_size);
+		auto mvp_memory = buffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+		auto mapped = m_logicalDevice.mapMemory(mvp_memory, 0, mvp_size);
+		memcpy(mapped, &m_mvp, mvp_size);
+		m_logicalDevice.unmapMemory(mvp_memory);
+	}
+	
+	m_directionalLight.AmbientIntensity = 0.1f;
+	m_directionalLight.SpecularIntensity = 0.5f;
+	m_directionalLight.Diffuse = glm::vec4(1.0f);
+	m_directionalLight.LightDirection = glm::vec3(0.0f, -5.0f, 0.0f);
+	
+	m_directionalLightBuffers.resize(m_images.size());
+	for (auto& buffer : m_directionalLightBuffers)
+	{
+		buffer = std::make_unique<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eUniformBuffer, directional_light_size);
+		auto directional_light_memory = buffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+		auto mapped = m_logicalDevice.mapMemory(directional_light_memory, 0, directional_light_size);
+		memcpy(mapped, &m_directionalLight, directional_light_size);
+		m_logicalDevice.unmapMemory(directional_light_memory);
+	}
 }
 
 GLVK::VK::SwapchainDetails GLVK::VK::GraphicsEngine::GetSwapchainDetails(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface) {
