@@ -4,6 +4,10 @@
 #include <memory>
 #include <vector>
 #include <vulkan/vulkan.hpp>
+#include "BufferVK.h"
+#include "ImageVK.h"
+#include "PipelineVK.h"
+#include "ShaderVK.h"
 #include "UtilsVK.h"
 
 namespace GLVK

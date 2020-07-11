@@ -7,10 +7,7 @@
 #include <numeric>
 #include <cassert>
 #include <cstring>
-#include "BufferVK.h"
-#include "ImageVK.h"
-#include "PipelineVK.h"
-#include "ShaderVK.h"
+#include "../../UtilsCommon.h"
 
 GLVK::VK::GraphicsEngine::GraphicsEngine(GLFWwindow* window, int width, int height)
 	: m_handle(window), m_width(width), m_height(height)

@@ -10,9 +10,10 @@ namespace GLVK
 		class Pipeline
 		{
 		public:
-			Pipeline(const vk::Device& device);
+			explicit Pipeline(const vk::Device& device);
 			~Pipeline();
 
+            static void CreateGraphicsPipeline(const vk::Device& device, const vk::PipelineColorBlendAttachmentState& colorBlendAttachment, const vk::SampleCountFlagBits& sampleCounts, const std::vector<vk::PipelineShaderStageCreateInfo>& shaderStageInfos, const vk::PipelineLayout& pipelineLayout, const vk::PipelineCache& pipelineCache, size_t blendModeIndex, const vk::RenderPass& renderPass, std::vector<vk::Pipeline>& pipelines);
 			void CreateRenderPass(const vk::Format& graphicsFormat, const vk::Format& depthFormat, const vk::SampleCountFlagBits& sampleCount);
 			void CreateGraphicPipelines(const vk::DescriptorSetLayout& descriptorSetLayout, const vk::SampleCountFlagBits& sampleCounts, const std::vector<vk::PipelineShaderStageCreateInfo>& shaderStageInfos, const vk::PipelineCache& pipelineCache = nullptr);
 			void CreateComputePipeline();
@@ -23,8 +24,6 @@ namespace GLVK
 			}
 
 		private:
-			static void CreateGraphicsPipeline(const vk::Device& device, const vk::PipelineColorBlendAttachmentState& colorBlendAttachment, const vk::SampleCountFlagBits& sampleCounts, const std::vector<vk::PipelineShaderStageCreateInfo>& shaderStageInfos, const vk::PipelineLayout& pipelineLayout, const vk::PipelineCache& pipelineCache, size_t blendModeIndex, const vk::RenderPass& renderPass, std::vector<vk::Pipeline>& pipelines);
-
 			inline static std::mutex m_mutex = std::mutex();
 
 			vk::RenderPass m_renderPass = nullptr;

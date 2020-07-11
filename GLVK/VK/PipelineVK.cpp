@@ -1,5 +1,8 @@
 #include "PipelineVK.h"
+#include <future>
 #include <thread>
+#include <utility>
+#include <vector>
 #include "UtilsVK.h"
 #include "../../UtilsCommon.h"
 
@@ -158,7 +161,8 @@ void GLVK::VK::Pipeline::CreateGraphicPipelines(const vk::DescriptorSetLayout& d
 	};
 
 	m_graphicsPipelines.resize(BLEND_MODE_COUNT);
-	std::thread worker_threads[BLEND_MODE_COUNT] = {};
+	//auto worker_threads = std::vector<std::thread>(BLEND_MODE_COUNT);
+	std::future<void> worker_threads[BLEND_MODE_COUNT];
 
 	for (size_t i = 0; i < BLEND_MODE_COUNT; ++i)
 	{
@@ -172,11 +176,12 @@ void GLVK::VK::Pipeline::CreateGraphicPipelines(const vk::DescriptorSetLayout& d
 		color_attachment.srcAlphaBlendFactor = src_alpha_blend_factor[i];
 		color_attachment.srcColorBlendFactor = src_color_blend_factor[i];
 
-		worker_threads[i] = std::thread(CreateGraphicsPipeline, m_logicalDevice, color_attachment, sampleCounts, shaderStageInfos, m_pipelineLayout, pipelineCache, i, m_renderPass, m_graphicsPipelines);
+		//worker_threads.emplace_back(Pipeline::CreateGraphicsPipeline, m_logicalDevice, color_attachment, sampleCounts, shaderStageInfos, m_pipelineLayout, pipelineCache, i, m_renderPass, m_graphicsPipelines);
+        worker_threads[i] = std::async(std::launch::async, &Pipeline::CreateGraphicsPipeline, m_logicalDevice, color_attachment, sampleCounts, shaderStageInfos, m_pipelineLayout, pipelineCache, i, m_renderPass, m_graphicsPipelines);
 	}
 
 	for (auto& thread : worker_threads)
-		thread.join();
+		thread.wait();
 }
 
 void GLVK::VK::Pipeline::CreateComputePipeline()

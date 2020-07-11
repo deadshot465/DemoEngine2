@@ -10,7 +10,7 @@ find_library(CoreVideoLib CoreVideo)
 find_library(IOKitLib IOKit)
 find_library(OpenGLLib OpenGL)
 find_library(CocoaLib Cocoa)
-find_package(vulkan REQUIRED)
+find_package(Vulkan REQUIRED)
 
 include_directories(.)
 include_directories(Includes)
@@ -24,6 +24,7 @@ add_executable(DemoEngine
         GLVK/VK/BufferVK.h GLVK/VK/BufferVK.cpp
         GLVK/VK/GraphicsEngineVK.h GLVK/VK/GraphicsEngineVK.cpp
         GLVK/VK/ImageVK.h GLVK/VK/ImageVK.cpp
+        GLVK/VK/PipelineVK.h GLVK/VK/PipelineVK.cpp
         GLVK/VK/ShaderVK.h GLVK/VK/ShaderVK.cpp
         GLVK/VK/UtilsVK.h)
 target_include_directories(DemoEngine PUBLIC /Users/Deadshot465/vulkansdk-macos-1.2.141.2/macOS/include)
