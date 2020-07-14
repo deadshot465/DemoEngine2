@@ -1,6 +1,5 @@
 #include "PipelineVK.h"
 #include <future>
-#include <thread>
 #include <utility>
 #include <vector>
 #include "UtilsVK.h"
@@ -9,10 +8,18 @@
 GLVK::VK::Pipeline::Pipeline(const vk::Device& device)
 	: m_logicalDevice(device)
 {
+	
 }
 
 GLVK::VK::Pipeline::~Pipeline()
 {
+	for (auto& pipeline : m_graphicsPipelines)
+	{
+		m_logicalDevice.destroyPipeline(pipeline);
+	}
+
+	m_logicalDevice.destroyPipelineLayout(m_pipelineLayout);
+
 	if (m_ownedRenderPass)
 		m_logicalDevice.destroyRenderPass(m_renderPass);
 }
@@ -89,6 +96,92 @@ void GLVK::VK::Pipeline::CreateRenderPass(const vk::Format& graphicsFormat, cons
 	m_ownedRenderPass = true;
 }
 
+void GLVK::VK::Pipeline::CreateGraphicPipeline(const vk::Device& device, const vk::PipelineColorBlendAttachmentState& colorBlendAttachment, const vk::SampleCountFlagBits& sampleCounts, const std::vector<vk::PipelineShaderStageCreateInfo>& shaderStageInfos, const vk::PipelineLayout& pipelineLayout, const vk::PipelineCache& pipelineCache, size_t blendModeIndex, const vk::RenderPass& renderPass, vk::Pipeline* pPipeline)
+{
+	auto vertex_input_info = vk::PipelineVertexInputStateCreateInfo();
+	auto attr_desc = Vertex::GetVertexInputAttributeDescription(0);
+	auto binding_desc = Vertex::GetVertexInputBindingDescription(0, vk::VertexInputRate::eVertex);
+	vertex_input_info.pVertexAttributeDescriptions = attr_desc.data();
+	vertex_input_info.pVertexBindingDescriptions = &binding_desc;
+	vertex_input_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(attr_desc.size());
+	vertex_input_info.vertexBindingDescriptionCount = 1;
+
+	auto ia_info = vk::PipelineInputAssemblyStateCreateInfo();
+	ia_info.primitiveRestartEnable = VK_FALSE;
+	ia_info.topology = vk::PrimitiveTopology::eTriangleList;
+
+	auto vp_info = vk::PipelineViewportStateCreateInfo();
+	vp_info.pScissors = nullptr;
+	vp_info.pViewports = nullptr;
+	vp_info.scissorCount = 1;
+	vp_info.viewportCount = 1;
+
+	auto rs_info = vk::PipelineRasterizationStateCreateInfo();
+	rs_info.cullMode = vk::CullModeFlagBits::eBack;
+	rs_info.depthBiasEnable = VK_FALSE;
+	rs_info.depthClampEnable = VK_FALSE;
+	rs_info.frontFace = vk::FrontFace::eClockwise;
+	rs_info.lineWidth = 1.0f;
+	rs_info.polygonMode = vk::PolygonMode::eFill;
+	rs_info.rasterizerDiscardEnable = VK_FALSE;
+
+	auto color_blend_info = vk::PipelineColorBlendStateCreateInfo();
+	color_blend_info.attachmentCount = 1;
+	color_blend_info.logicOp = vk::LogicOp::eCopy;
+	color_blend_info.logicOpEnable = VK_FALSE;
+	color_blend_info.pAttachments = &colorBlendAttachment;
+
+	auto depth_info = vk::PipelineDepthStencilStateCreateInfo();
+	depth_info.depthBoundsTestEnable = VK_FALSE;
+	depth_info.depthCompareOp = vk::CompareOp::eLess;
+	depth_info.depthTestEnable = VK_TRUE;
+	depth_info.depthWriteEnable = VK_TRUE;
+	depth_info.stencilTestEnable = VK_FALSE;
+
+	auto dynamic_states = std::vector<vk::DynamicState>{
+		vk::DynamicState::eScissor,
+		vk::DynamicState::eViewport
+	};
+
+	auto dynamic_info = vk::PipelineDynamicStateCreateInfo();
+	dynamic_info.dynamicStateCount = static_cast<uint32_t>(dynamic_states.size());
+	dynamic_info.pDynamicStates = dynamic_states.data();
+
+	auto msaa_info = vk::PipelineMultisampleStateCreateInfo();
+	msaa_info.alphaToCoverageEnable = VK_FALSE;
+	msaa_info.alphaToOneEnable = VK_FALSE;
+	msaa_info.minSampleShading = .25f;
+	msaa_info.pSampleMask = nullptr;
+	msaa_info.rasterizationSamples = sampleCounts;
+	msaa_info.sampleShadingEnable = VK_TRUE;
+
+	auto pipeline_info = vk::GraphicsPipelineCreateInfo();
+	pipeline_info.basePipelineHandle = nullptr;
+	pipeline_info.basePipelineIndex = -1;
+	pipeline_info.subpass = 0;
+	pipeline_info.pColorBlendState = &color_blend_info;
+	pipeline_info.pDepthStencilState = &depth_info;
+	pipeline_info.pDynamicState = &dynamic_info;
+	pipeline_info.pInputAssemblyState = &ia_info;
+	pipeline_info.pMultisampleState = &msaa_info;
+	pipeline_info.pRasterizationState = &rs_info;
+	pipeline_info.pStages = shaderStageInfos.data();
+	pipeline_info.pTessellationState = nullptr;
+	pipeline_info.pVertexInputState = &vertex_input_info;
+	pipeline_info.pViewportState = &vp_info;
+	pipeline_info.renderPass = renderPass;
+	pipeline_info.stageCount = static_cast<uint32_t>(shaderStageInfos.size());
+	pipeline_info.layout = pipelineLayout;
+
+	auto pipeline = device.createGraphicsPipeline(pipelineCache, pipeline_info);
+	ThrowIfFailed(pipeline.result, "Failed to create graphics pipeline.\n");
+
+	{
+		auto lock = std::lock_guard<std::mutex>{ m_mutex };
+		*pPipeline = pipeline.value;
+	}
+}
+
 void GLVK::VK::Pipeline::CreateGraphicPipelines(const vk::DescriptorSetLayout& descriptorSetLayout, const vk::SampleCountFlagBits& sampleCounts, const std::vector<vk::PipelineShaderStageCreateInfo>& shaderStageInfos, const vk::PipelineCache& pipelineCache)
 {
 	static constexpr auto BLEND_MODE_COUNT = static_cast<size_t>(BlendMode::End);
@@ -161,7 +254,6 @@ void GLVK::VK::Pipeline::CreateGraphicPipelines(const vk::DescriptorSetLayout& d
 	};
 
 	m_graphicsPipelines.resize(BLEND_MODE_COUNT);
-	//auto worker_threads = std::vector<std::thread>(BLEND_MODE_COUNT);
 	std::future<void> worker_threads[BLEND_MODE_COUNT];
 
 	for (size_t i = 0; i < BLEND_MODE_COUNT; ++i)
@@ -176,8 +268,7 @@ void GLVK::VK::Pipeline::CreateGraphicPipelines(const vk::DescriptorSetLayout& d
 		color_attachment.srcAlphaBlendFactor = src_alpha_blend_factor[i];
 		color_attachment.srcColorBlendFactor = src_color_blend_factor[i];
 
-		//worker_threads.emplace_back(Pipeline::CreateGraphicsPipeline, m_logicalDevice, color_attachment, sampleCounts, shaderStageInfos, m_pipelineLayout, pipelineCache, i, m_renderPass, m_graphicsPipelines);
-        worker_threads[i] = std::async(std::launch::async, &Pipeline::CreateGraphicsPipeline, m_logicalDevice, color_attachment, sampleCounts, shaderStageInfos, m_pipelineLayout, pipelineCache, i, m_renderPass, m_graphicsPipelines);
+		worker_threads[i] = std::async(std::launch::async, &Pipeline::CreateGraphicPipeline, this, m_logicalDevice, color_attachment, sampleCounts, shaderStageInfos, m_pipelineLayout, pipelineCache, i, m_renderPass, &m_graphicsPipelines[i]);
 	}
 
 	for (auto& thread : worker_threads)
@@ -186,90 +277,4 @@ void GLVK::VK::Pipeline::CreateGraphicPipelines(const vk::DescriptorSetLayout& d
 
 void GLVK::VK::Pipeline::CreateComputePipeline()
 {
-}
-
-void GLVK::VK::Pipeline::CreateGraphicsPipeline(const vk::Device& device, const vk::PipelineColorBlendAttachmentState& colorBlendAttachment, const vk::SampleCountFlagBits& sampleCounts, const std::vector<vk::PipelineShaderStageCreateInfo>& shaderStageInfos, const vk::PipelineLayout& pipelineLayout, const vk::PipelineCache& pipelineCache, size_t blendModeIndex, const vk::RenderPass& renderPass, std::vector<vk::Pipeline>& pipelines)
-{
-	auto vertex_input_info = vk::PipelineVertexInputStateCreateInfo();
-	auto attr_desc = Vertex::GetVertexInputAttributeDescription(0);
-	auto binding_desc = Vertex::GetVertexInputBindingDescription(0, vk::VertexInputRate::eVertex);
-	vertex_input_info.pVertexAttributeDescriptions = attr_desc.data();
-	vertex_input_info.pVertexBindingDescriptions = &binding_desc;
-	vertex_input_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(attr_desc.size());
-	vertex_input_info.vertexBindingDescriptionCount = 1;
-
-	auto ia_info = vk::PipelineInputAssemblyStateCreateInfo();
-	ia_info.primitiveRestartEnable = VK_FALSE;
-	ia_info.topology = vk::PrimitiveTopology::eTriangleList;
-
-	auto vp_info = vk::PipelineViewportStateCreateInfo();
-	vp_info.pScissors = nullptr;
-	vp_info.pViewports = nullptr;
-	vp_info.scissorCount = 1;
-	vp_info.viewportCount = 1;
-
-	auto rs_info = vk::PipelineRasterizationStateCreateInfo();
-	rs_info.cullMode = vk::CullModeFlagBits::eBack;
-	rs_info.depthBiasEnable = VK_FALSE;
-	rs_info.depthClampEnable = VK_FALSE;
-	rs_info.frontFace = vk::FrontFace::eClockwise;
-	rs_info.lineWidth = 1.0f;
-	rs_info.polygonMode = vk::PolygonMode::eFill;
-	rs_info.rasterizerDiscardEnable = VK_FALSE;
-
-	auto color_blend_info = vk::PipelineColorBlendStateCreateInfo();
-	color_blend_info.attachmentCount = 1;
-	color_blend_info.logicOp = vk::LogicOp::eCopy;
-	color_blend_info.logicOpEnable = VK_FALSE;
-	color_blend_info.pAttachments = &colorBlendAttachment;
-
-	auto depth_info = vk::PipelineDepthStencilStateCreateInfo();
-	depth_info.depthBoundsTestEnable = VK_FALSE;
-	depth_info.depthCompareOp = vk::CompareOp::eLess;
-	depth_info.depthTestEnable = VK_TRUE;
-	depth_info.depthWriteEnable = VK_TRUE;
-	depth_info.stencilTestEnable = VK_FALSE;
-
-	auto dynamic_states = std::vector<vk::DynamicState>{
-		vk::DynamicState::eScissor,
-		vk::DynamicState::eViewport
-	};
-
-	auto dynamic_info = vk::PipelineDynamicStateCreateInfo();
-	dynamic_info.dynamicStateCount = static_cast<uint32_t>(dynamic_states.size());
-	dynamic_info.pDynamicStates = dynamic_states.data();
-
-	auto msaa_info = vk::PipelineMultisampleStateCreateInfo();
-	msaa_info.alphaToCoverageEnable = VK_FALSE;
-	msaa_info.alphaToOneEnable = VK_FALSE;
-	msaa_info.minSampleShading = .25f;
-	msaa_info.pSampleMask = nullptr;
-	msaa_info.rasterizationSamples = sampleCounts;
-	msaa_info.sampleShadingEnable = VK_TRUE;
-
-	auto pipeline_info = vk::GraphicsPipelineCreateInfo();
-	pipeline_info.basePipelineHandle = nullptr;
-	pipeline_info.basePipelineIndex = -1;
-	pipeline_info.subpass = VK_SUBPASS_EXTERNAL;
-	pipeline_info.pColorBlendState = &color_blend_info;
-	pipeline_info.pDepthStencilState = &depth_info;
-	pipeline_info.pDynamicState = &dynamic_info;
-	pipeline_info.pInputAssemblyState = &ia_info;
-	pipeline_info.pMultisampleState = &msaa_info;
-	pipeline_info.pRasterizationState = &rs_info;
-	pipeline_info.pStages = shaderStageInfos.data();
-	pipeline_info.pTessellationState = nullptr;
-	pipeline_info.pVertexInputState = &vertex_input_info;
-	pipeline_info.pViewportState = &vp_info;
-	pipeline_info.renderPass = renderPass;
-	pipeline_info.stageCount = static_cast<uint32_t>(shaderStageInfos.size());
-	pipeline_info.layout = pipelineLayout;
-	
-	auto pipeline = device.createGraphicsPipeline(pipelineCache, pipeline_info);
-	ThrowIfFailed(pipeline.result, "Failed to create graphics pipeline.\n");
-	
-	{
-		auto lock = std::lock_guard<std::mutex>{ m_mutex };
-		pipelines[blendModeIndex] = pipeline.value;
-	}
 }

@@ -159,11 +159,11 @@ void GLVK::VK::GraphicsEngine::Initialize()
 	try
 	{
 		CreateSwapchain();
+		CreateUniformBuffers();
 		CreateDescriptorLayout();
 		CreateDescriptorSets();
 		CreateDepthImage();
 		CreateMultisamplingImage();
-		CreateUniformBuffers();
 		m_pipeline = std::make_unique<Pipeline>(m_logicalDevice);
 		m_pipeline->CreateRenderPass(m_format, GetDepthFormat(m_physicalDevice, vk::ImageTiling::eOptimal), m_msaaSampleCount);
 		m_pipeline->CreateGraphicPipelines(m_descriptorSetLayout, m_msaaSampleCount, {
