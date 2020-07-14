@@ -64,6 +64,10 @@ namespace GLVK
 			void CreateDepthImage();
 			void CreateMultisamplingImage();
 			void CreateUniformBuffers();
+			void CreateFramebuffers();
+			void CreateCommandBuffers();
+			void CreateSynchronizationObjects();
+			void BeginRenderPass();
 
 			inline static const std::vector<const char*> m_enabledLayerNames = {
 				"VK_LAYER_KHRONOS_validation"
@@ -76,6 +80,7 @@ namespace GLVK
 			int m_width = 0;
 			int m_height = 0;
 			bool m_debug = true;
+			size_t m_currentImageIndex = 0;
 			vk::Instance m_instance = nullptr;
 			vk::DebugUtilsMessengerEXT m_debugUtils = nullptr;
 			vk::PhysicalDevice m_physicalDevice = nullptr;
@@ -92,6 +97,11 @@ namespace GLVK
 			vk::DescriptorSetLayout m_descriptorSetLayout = nullptr;
 			vk::DescriptorPool m_descriptorPool = nullptr;
 			std::vector<vk::DescriptorSet> m_descriptorSets;
+			std::vector<vk::Framebuffer> m_framebuffers;
+			std::vector<vk::CommandBuffer> m_commandBuffers;
+			std::vector<vk::Semaphore> m_imageAcquiredSemaphores;
+			std::vector<vk::Semaphore> m_renderCompletedSemaphores;
+			std::vector<vk::Fence> m_fences;
 
 			std::vector<std::unique_ptr<Image>> m_images;
 			std::unique_ptr<Shader> m_vertexShader = nullptr;

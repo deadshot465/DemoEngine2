@@ -3,7 +3,6 @@
 #include <utility>
 #include <vector>
 #include "UtilsVK.h"
-#include "../../UtilsCommon.h"
 
 GLVK::VK::Pipeline::Pipeline(const vk::Device& device)
 	: m_logicalDevice(device)

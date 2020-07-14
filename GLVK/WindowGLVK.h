@@ -1,4 +1,5 @@
 #pragma once
+#include <chrono>
 #include <GLFW/glfw3.h>
 #include <memory>
 #include "../Interfaces/IWindow.h"
@@ -33,6 +34,7 @@ namespace GLVK
 		void Create();
 
 		GLFWwindow* m_handle = nullptr;
+		std::chrono::time_point<std::chrono::steady_clock> m_lastFrameTime;
 		std::unique_ptr<VK::GraphicsEngine> m_graphicsEngineVk = nullptr;
 	};
 }

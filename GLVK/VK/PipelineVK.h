@@ -2,6 +2,7 @@
 #include <mutex>
 #include <vector>
 #include <vulkan/vulkan.hpp>
+#include "../../UtilsCommon.h"
 
 namespace GLVK
 {
@@ -18,10 +19,20 @@ namespace GLVK
 			void CreateGraphicPipelines(const vk::DescriptorSetLayout& descriptorSetLayout, const vk::SampleCountFlagBits& sampleCounts, const std::vector<vk::PipelineShaderStageCreateInfo>& shaderStageInfos, const vk::PipelineCache& pipelineCache = nullptr);
 			void CreateComputePipeline();
 
-			const vk::RenderPass& GetRenderPass() const noexcept
+			[[nodiscard]] const vk::RenderPass& GetRenderPass() const noexcept
 			{
 				return m_renderPass;
 			}
+
+			[[nodiscard]] const vk::Pipeline& GetPipeline(const BlendMode& blendMode) const noexcept
+            {
+			    return m_graphicsPipelines[size_t(blendMode)];
+            }
+
+			[[nodiscard]] const vk::PipelineLayout& GetPipelineLayout() const noexcept
+            {
+			    return m_pipelineLayout;
+            }
 
 		private:
 			inline static std::mutex m_mutex = std::mutex();

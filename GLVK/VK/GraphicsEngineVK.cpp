@@ -1,13 +1,11 @@
 #include "GraphicsEngineVK.h"
 #include <algorithm>
+#include <array>
+#include <chrono>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
-#include <string>
 #include <unordered_set>
-#include <numeric>
-#include <cassert>
 #include <cstring>
-#include "../../UtilsCommon.h"
 
 GLVK::VK::GraphicsEngine::GraphicsEngine(GLFWwindow* window, int width, int height)
 	: m_handle(window), m_width(width), m_height(height)
@@ -55,12 +53,54 @@ GLVK::VK::GraphicsEngine::~GraphicsEngine()
 
 void GLVK::VK::GraphicsEngine::Update(float deltaTime)
 {
+    using namespace std::chrono;
+    static auto start_time = high_resolution_clock::now();
+    auto current_time = high_resolution_clock::now();
+    auto duration_between = duration<float, seconds::period>(current_time - start_time).count();
 
+    static auto elapsed_time_since_last_frame = 0.0f;
+    elapsed_time_since_last_frame += deltaTime;
+
+    auto rotate_x = glm::rotate(glm::mat4(1.0f), duration_between * glm::radians(45.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    auto rotate_y = glm::rotate(glm::mat4(1.0f), duration_between * glm::radians(-45.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+    auto rotate_z = glm::rotate(glm::mat4(1.0f), duration_between * glm::radians(45.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    m_mvp.Model = rotate_z * rotate_y * rotate_x * glm::mat4(1.0f);
+    auto data = m_logicalDevice.mapMemory(m_mvpBuffers[m_currentImageIndex]->GetDeviceMemory(), 0, sizeof(MVP));
+    memcpy(data, &m_mvp, sizeof(MVP));
+    m_logicalDevice.unmapMemory(m_mvpBuffers[m_currentImageIndex]->GetDeviceMemory());
 }
 
 void GLVK::VK::GraphicsEngine::Render()
 {
+    auto result = m_logicalDevice.acquireNextImageKHR(m_swapchain, std::numeric_limits<uint32_t>::max(), m_imageAcquiredSemaphores[m_currentImageIndex], nullptr);
 
+    vk::PipelineStageFlags wait_stages[] = {
+            vk::PipelineStageFlagBits::eColorAttachmentOutput
+    };
+
+    auto submit_info = vk::SubmitInfo();
+    submit_info.commandBufferCount = static_cast<uint32_t>(m_commandBuffers.size());
+    submit_info.pCommandBuffers = m_commandBuffers.data();
+    submit_info.signalSemaphoreCount = 1;
+    submit_info.pSignalSemaphores = &m_renderCompletedSemaphores[m_currentImageIndex];
+    submit_info.pWaitSemaphores = &m_imageAcquiredSemaphores[m_currentImageIndex];
+    submit_info.pWaitDstStageMask = wait_stages;
+    submit_info.waitSemaphoreCount = 1;
+
+    m_logicalDevice.resetFences(m_fences[m_currentImageIndex]);
+    m_graphicsQueue.submit(submit_info, m_fences[m_currentImageIndex]);
+
+    auto present_info = vk::PresentInfoKHR();
+    present_info.waitSemaphoreCount = 1;
+    present_info.pWaitSemaphores = &m_renderCompletedSemaphores[m_currentImageIndex];
+    present_info.pImageIndices = &result.value;
+    present_info.pResults = nullptr;
+    present_info.pSwapchains = &m_swapchain;
+    present_info.swapchainCount = 1;
+
+    m_presentQueue.presentKHR(present_info);
+    m_logicalDevice.waitForFences(m_fences[m_currentImageIndex], VK_TRUE, std::numeric_limits<uint64_t>::max());
+    m_currentImageIndex = (m_currentImageIndex + 1) % m_images.size();
 }
 
 std::vector<const char*> GLVK::VK::GraphicsEngine::GetRequiredExtensions(bool debug) noexcept
@@ -170,6 +210,10 @@ void GLVK::VK::GraphicsEngine::Initialize()
 			m_vertexShader->GetShaderStageInfo(),
 			m_fragmentShader->GetShaderStageInfo()
 			});
+		CreateFramebuffers();
+		CreateCommandBuffers();
+		CreateSynchronizationObjects();
+		BeginRenderPass();
 	}
 	catch (const std::exception&)
 	{
@@ -179,10 +223,16 @@ void GLVK::VK::GraphicsEngine::Initialize()
 
 void GLVK::VK::GraphicsEngine::Dispose()
 {
+    m_logicalDevice.waitIdle();
+    m_logicalDevice.freeCommandBuffers(m_commandPool, m_commandBuffers);
 	m_pipeline.reset();
 
 	for (auto i = 0; i < m_images.size(); ++i)
 	{
+	    m_logicalDevice.destroyFence(m_fences[i]);
+	    m_logicalDevice.destroySemaphore(m_imageAcquiredSemaphores[i]);
+	    m_logicalDevice.destroySemaphore(m_renderCompletedSemaphores[i]);
+	    m_logicalDevice.destroyFramebuffer(m_framebuffers[i]);
 		m_mvpBuffers[i].reset();
 		m_directionalLightBuffers[i].reset();
 	}
@@ -484,12 +534,12 @@ void GLVK::VK::GraphicsEngine::CreateDescriptorLayout()
 void GLVK::VK::GraphicsEngine::CreateDescriptorSets()
 {
 	vk::DescriptorPoolSize pool_sizes[2] = {};
-	pool_sizes[0].descriptorCount = 1;
+	pool_sizes[0].descriptorCount = static_cast<uint32_t>(m_images.size());
 	pool_sizes[0].type = vk::DescriptorType::eUniformBuffer;
-	pool_sizes[1].descriptorCount = 1;
+	pool_sizes[1].descriptorCount = static_cast<uint32_t>(m_images.size());
 	pool_sizes[1].type = vk::DescriptorType::eUniformBuffer;
 
-	assert(m_images.size() > 0);
+	assert(!m_images.empty());
 	auto pool_info = vk::DescriptorPoolCreateInfo();
 	pool_info.maxSets = static_cast<uint32_t>(m_images.size());
 	pool_info.poolSizeCount = _countof(pool_sizes);
@@ -681,6 +731,92 @@ vk::SampleCountFlagBits GLVK::VK::GraphicsEngine::GetMsaaSampleCounts(const vk::
 	if (sample_counts & vk::SampleCountFlagBits::e4) return vk::SampleCountFlagBits::e4;
 	if (sample_counts & vk::SampleCountFlagBits::e2) return vk::SampleCountFlagBits::e2;
 	return vk::SampleCountFlagBits::e1;
+}
+
+void GLVK::VK::GraphicsEngine::CreateFramebuffers()
+{
+    m_framebuffers.resize(m_images.size());
+    for (auto i = 0; i < m_images.size(); ++i)
+    {
+        vk::ImageView image_views[] =
+        {
+                m_msaaImage->GetImageView(),
+                m_depthImage->GetImageView(),
+                m_images[i]->GetImageView()
+        };
+
+        auto info = vk::FramebufferCreateInfo();
+        info.attachmentCount = 3;
+        info.pAttachments = image_views;
+        info.height = m_extent.height;
+        info.layers = 1;
+        info.renderPass = m_pipeline->GetRenderPass();
+        info.width = m_extent.width;
+        m_framebuffers[i] = m_logicalDevice.createFramebuffer(info);
+    }
+}
+
+void GLVK::VK::GraphicsEngine::CreateCommandBuffers()
+{
+    auto info = vk::CommandBufferAllocateInfo();
+    info.commandBufferCount = static_cast<uint32_t>(m_images.size());
+    info.commandPool = m_commandPool;
+    info.level = vk::CommandBufferLevel::ePrimary;
+    m_commandBuffers = m_logicalDevice.allocateCommandBuffers(info);
+}
+
+void GLVK::VK::GraphicsEngine::BeginRenderPass()
+{
+    static const auto clear_color = vk::ClearColorValue(std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 1.0f });
+    static const auto clear_depth = vk::ClearDepthStencilValue(1.0f, 0);
+    static const vk::ClearValue clear_values[] = { vk::ClearValue(clear_color), vk::ClearValue(clear_depth) };
+    auto renderpass_info = vk::RenderPassBeginInfo();
+    renderpass_info.renderPass = m_pipeline->GetRenderPass();
+    renderpass_info.renderArea.extent = m_extent;
+    renderpass_info.renderArea.offset = vk::Offset2D();
+    renderpass_info.clearValueCount = _countof(clear_values);
+    renderpass_info.pClearValues = clear_values;
+    auto begin_info = vk::CommandBufferBeginInfo();
+    begin_info.pInheritanceInfo = nullptr;
+
+    auto scissor = vk::Rect2D();
+    scissor.extent = m_extent;
+
+    for (auto i = 0; i < m_images.size(); ++i)
+    {
+        renderpass_info.framebuffer = m_framebuffers[i];
+        m_commandBuffers[i].begin(begin_info);
+        m_commandBuffers[i].beginRenderPass(renderpass_info, vk::SubpassContents::eInline);
+
+        m_commandBuffers[i].setViewport(0, { vk::Viewport(0.0f, 0.0f, m_extent.width, m_extent.height, 0.0f, 1.0f) });
+        m_commandBuffers[i].setScissor(0, { scissor });
+        m_commandBuffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_pipeline->GetPipelineLayout(), 0, { m_descriptorSets[i] }, nullptr);
+        m_commandBuffers[i].bindVertexBuffers(0, m_vertexBuffer->GetBuffer(), { 0 });
+        m_commandBuffers[i].bindIndexBuffer(m_indexBuffer->GetBuffer(), 0, vk::IndexType::eUint32);
+        m_commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, m_pipeline->GetPipeline(BlendMode::None));
+        m_commandBuffers[i].drawIndexed(m_cubeIndices.size(), 1, 0, 0, 0);
+
+        m_commandBuffers[i].endRenderPass();
+        m_commandBuffers[i].end();
+    }
+}
+
+void GLVK::VK::GraphicsEngine::CreateSynchronizationObjects()
+{
+    m_imageAcquiredSemaphores.resize(m_images.size());
+    m_renderCompletedSemaphores.resize(m_images.size());
+    m_fences.resize(m_images.size());
+
+    auto semaphore_info = vk::SemaphoreCreateInfo();
+    auto fence_info = vk::FenceCreateInfo();
+    fence_info.flags = vk::FenceCreateFlagBits::eSignaled;
+
+    for (auto i = 0; i < m_images.size(); ++i)
+    {
+        m_imageAcquiredSemaphores[i] = m_logicalDevice.createSemaphore(semaphore_info);
+        m_renderCompletedSemaphores[i] = m_logicalDevice.createSemaphore(semaphore_info);
+        m_fences[i] = m_logicalDevice.createFence(fence_info);
+    }
 }
 
 

@@ -1,6 +1,5 @@
 #include "WindowGLVK.h"
 #include <stdexcept>
-#include "../UtilsCommon.h"
 
 GLVK::Window::Window(std::wstring_view title, int width, int height, bool fullScreen)
 	: IWindow(title, width, height, fullScreen)
@@ -55,11 +54,31 @@ void GLVK::Window::Setup()
 
 void GLVK::Window::Update()
 {
-	
+    using namespace std::chrono;
+
+    auto current_frame = high_resolution_clock::now();
+    auto elapsed = duration<float, seconds::period>(current_frame - m_lastFrameTime).count();
+
+    try {
+        m_graphicsEngineVk->Update(elapsed);
+    }
+    catch (const std::exception&)
+    {
+        throw;
+    }
+
+    m_lastFrameTime = current_frame;
 }
 
 void GLVK::Window::Render()
 {
+    try {
+        m_graphicsEngineVk->Render();
+    }
+    catch (const std::exception&)
+    {
+        throw;
+    }
 }
 
 void GLVK::Window::Dispose()
@@ -99,4 +118,5 @@ void GLVK::Window::Create()
 	glfwSetKeyCallback(m_handle, KeyCallback);
 	
 	m_isInitialized = true;
+	m_lastFrameTime = std::chrono::high_resolution_clock::now();
 }

@@ -24,6 +24,11 @@ namespace GLVK
 
 			virtual const vk::DeviceMemory& AllocateMemory(const vk::PhysicalDevice& physicalDevice, const vk::MemoryPropertyFlags& memoryProperties) = 0;
 
+			[[nodiscard]] const vk::DeviceMemory& GetDeviceMemory() const noexcept
+            {
+			    return m_deviceMemory;
+            }
+
 		protected:
 			uint32_t GetMemoryTypeIndex(const vk::PhysicalDevice& physicalDevice, uint32_t memoryType, const vk::MemoryPropertyFlags& memoryProperties)
 			{

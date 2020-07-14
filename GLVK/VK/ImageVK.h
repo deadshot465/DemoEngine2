@@ -19,6 +19,10 @@ namespace GLVK
 
 			void CreateImageView(const vk::Format& format, const vk::ImageAspectFlags& aspectMask, uint32_t levelCount, const vk::ImageViewType& imageViewType);
 			void TransitionLayout(const vk::ImageLayout& srcLayout, const vk::ImageLayout& dstLayout, const vk::CommandPool& commandPool, const vk::Queue& graphicsQueue, const vk::ImageAspectFlags& imageAspects, uint32_t levelCount);
+			const vk::ImageView& GetImageView() const noexcept
+            {
+			    return m_imageView;
+            }
 
 		private:
 			vk::Image m_image = nullptr;
