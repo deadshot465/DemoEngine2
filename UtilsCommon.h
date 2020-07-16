@@ -1,8 +1,13 @@
 #pragma once
+#include <algorithm>
 #include <fstream>
+#include <functional>
+#include <iterator>
+#include <random>
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 enum class BlendMode
@@ -52,3 +57,40 @@ inline size_t CountOf(const T (&arr)[N])
 }
 #define _countof(arr) CountOf(arr)
 #endif
+
+template <typename T = std::mt19937, size_t N = T::state_size>
+inline auto GetRandomSeededEngine() -> typename std::enable_if_t<N != 0, T>
+{
+	typename T::result_type data[N];
+	std::random_device rd;
+	std::generate(std::begin(data), std::end(data), std::ref(rd));
+	std::seed_seq seeds(std::begin(data), std::end(data));
+	T engine(seeds);
+	return engine;
+}
+
+static auto DEFAULT_ENGINE = GetRandomSeededEngine();
+
+template <typename T = float>
+inline T GetRandomNumber(T lower, T upper)
+{
+	if constexpr (std::is_floating_point_v<T>)
+	{
+		std::uniform_real_distribution<T> rng(lower, upper);
+		return rng(DEFAULT_ENGINE);
+	}
+	else if constexpr (std::is_integral_v<T>)
+	{
+		std::uniform_int_distribution<T> rng(lower, upper);
+		return rng(DEFAULT_ENGINE);
+	}
+}
+
+inline std::string GetRandomString(size_t length)
+{
+	static std::string random_characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+	auto generated = std::string();
+	std::sample(random_characters.cbegin(), random_characters.cend(), std::back_inserter(random_characters), length, DEFAULT_ENGINE);
+	return generated;
+}

@@ -4,6 +4,7 @@
 #include <memory>
 #include <vector>
 #include <vulkan/vulkan.hpp>
+#include "../../Interfaces/IGraphics.h"
 #include "BufferVK.h"
 #include "ImageVK.h"
 #include "PipelineVK.h"
@@ -20,14 +21,19 @@ namespace GLVK
 		class Pipeline;
 
 		class GraphicsEngine
+			: public IGraphics
 		{
 		public:
-			GraphicsEngine(GLFWwindow* window, int width, int height);
+			GraphicsEngine(GLFWwindow* window, int width, int height, IResourceManager* resourceManager);
 			~GraphicsEngine();
 
-			void Update(float deltaTime);
-			void Render();
-		
+			virtual void Update(float deltaTime) override;
+			virtual void Render() override;
+			virtual void CreateCube() override;
+			virtual void CreateSphere() override;
+			virtual void CreateCylinder() override;
+			virtual void CreateCapsule() override;
+
 		private:
 			std::vector<Vertex> m_cubeVertices;
 			std::vector<uint32_t> m_cubeIndices;
@@ -76,9 +82,6 @@ namespace GLVK
 				VK_KHR_SWAPCHAIN_EXTENSION_NAME
 			};
 
-			GLFWwindow* m_handle = nullptr;
-			int m_width = 0;
-			int m_height = 0;
 			bool m_debug = true;
 			size_t m_currentImageIndex = 0;
 			vk::Instance m_instance = nullptr;

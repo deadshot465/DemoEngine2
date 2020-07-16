@@ -2,6 +2,9 @@
 #include <chrono>
 #include <string>
 #include <string_view>
+#include "../Interfaces/IGraphics.h"
+
+class IGraphics;
 
 class IWindow
 {
@@ -11,13 +14,15 @@ public:
 
 	virtual bool Initialize() = 0;
 	virtual void Run() = 0;
+	virtual void Setup(IGraphics* graphics) = 0;
 
-	constexpr int GetWidth() { return m_width; }
-	constexpr int GetHeight() { return m_height; }
-	constexpr bool IsInitialized() { return m_isInitialized; }
+	constexpr int GetWidth() const noexcept { return m_width; }
+	constexpr int GetHeight() const noexcept { return m_height; }
+	constexpr bool IsInitialized() const noexcept { return m_isInitialized; }
+	constexpr void* GetHandle() const noexcept { return m_handle; }
+	constexpr IGraphics* GetGraphics() const noexcept { return m_graphics; }
 
 protected:
-	virtual void Setup() = 0;
 	virtual void Update() = 0;
 	virtual void Render() = 0;
 	virtual void Dispose() = 0;
@@ -26,6 +31,8 @@ protected:
 	int m_height = 0;
 	bool m_isInitialized = false;
 	bool m_isFullScreen = false;
+	void* m_handle = nullptr;
+	IGraphics* m_graphics = nullptr;
 
 	std::chrono::time_point<std::chrono::steady_clock> m_lastFrameTime;
 	

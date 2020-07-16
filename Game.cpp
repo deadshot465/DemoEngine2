@@ -1,0 +1,35 @@
+#include "Game.h"
+#include "GLVK/WindowGLVK.h"
+#include "GLVK/VK/GraphicsEngineVK.h"
+#include "Interfaces/IResourceManager.h"
+
+Game::Game(std::wstring_view title, int width, int height, bool fullScreen)
+{
+	m_resourceManager = std::make_unique<IResourceManager>();
+	m_window = std::make_unique<GLVK::Window>(title, width, height, fullScreen);
+}
+
+Game::~Game()
+{
+	if (m_graphics) m_graphics.reset();
+	if (m_window) m_window.reset();
+	if (m_resourceManager) m_resourceManager.reset();
+}
+
+bool Game::Initialize()
+{
+	m_window->Initialize();
+	m_graphics = std::make_unique<GLVK::VK::GraphicsEngine>(reinterpret_cast<GLFWwindow*>(m_window->GetHandle()), m_window->GetWidth(), m_window->GetHeight(), m_resourceManager.get());
+	m_window->Setup(m_graphics.get());
+	return m_window->IsInitialized();
+}
+
+bool Game::IsInitialized() const noexcept
+{
+	return m_window->IsInitialized();
+}
+
+void Game::Run()
+{
+	m_window->Run();
+}

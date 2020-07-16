@@ -2,19 +2,18 @@
 #ifdef WIN32
 #include "DX/WindowDX.h"
 #endif
-#include "GLVK/WindowGLVK.h"
+#include "Game.h"
 
 int main()
 {
-	//DX::Window window{ L"Demo Engine", 1024, 768, false };
-	GLVK::Window window{ L"Demo Engine", 1024, 768, false };
+	Game game{ L"Demo Engine", 1024, 768, false };
 
 	try
 	{
-		if (window.Initialize())
+		if (game.Initialize())
 		{
-			while (window.IsInitialized())
-				window.Run();
+			while (game.IsInitialized())
+				game.Run();
 		}
 	}
 	catch (const std::exception& ex)

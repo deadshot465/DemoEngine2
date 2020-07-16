@@ -9,7 +9,7 @@ GLVK::Window::Window(std::wstring_view title, int width, int height, bool fullSc
 
 GLVK::Window::~Window()
 {
-	glfwDestroyWindow(m_handle);
+	glfwDestroyWindow(reinterpret_cast<GLFWwindow*>(m_handle));
 	glfwTerminate();
 }
 
@@ -29,7 +29,7 @@ bool GLVK::Window::Initialize()
 
 void GLVK::Window::Run()
 {
-	while (!glfwWindowShouldClose(m_handle))
+	while (!glfwWindowShouldClose(reinterpret_cast<GLFWwindow*>(m_handle)))
 	{
 		glfwPollEvents();
 		
@@ -40,11 +40,11 @@ void GLVK::Window::Run()
 	Dispose();
 }
 
-void GLVK::Window::Setup()
+void GLVK::Window::Setup(IGraphics* graphics)
 {
 	try
 	{
-		m_graphicsEngineVk = std::make_unique<VK::GraphicsEngine>(m_handle, m_width, m_height);
+		m_graphics = graphics;
 	}
 	catch (const std::exception&)
 	{
@@ -56,11 +56,13 @@ void GLVK::Window::Update()
 {
     using namespace std::chrono;
 
+	if (!m_graphics) return;
+
     auto current_frame = high_resolution_clock::now();
     auto elapsed = duration<float, seconds::period>(current_frame - m_lastFrameTime).count();
 
     try {
-        m_graphicsEngineVk->Update(elapsed);
+        m_graphics->Update(elapsed);
     }
     catch (const std::exception&)
     {
@@ -72,8 +74,10 @@ void GLVK::Window::Update()
 
 void GLVK::Window::Render()
 {
+	if (!m_graphics) return;
+
     try {
-        m_graphicsEngineVk->Render();
+        m_graphics->Render();
     }
     catch (const std::exception&)
     {
@@ -109,13 +113,11 @@ void GLVK::Window::Create()
 		throw std::runtime_error("Failed to create window with GLFW.\n");
 	}
 
-	Setup();
+	glfwShowWindow(reinterpret_cast<GLFWwindow*>(m_handle));
+	glfwFocusWindow(reinterpret_cast<GLFWwindow*>(m_handle));
+	glfwMakeContextCurrent(reinterpret_cast<GLFWwindow*>(m_handle));
 
-	glfwShowWindow(m_handle);
-	glfwFocusWindow(m_handle);
-	glfwMakeContextCurrent(m_handle);
-
-	glfwSetKeyCallback(m_handle, KeyCallback);
+	glfwSetKeyCallback(reinterpret_cast<GLFWwindow*>(m_handle), KeyCallback);
 	
 	m_isInitialized = true;
 	m_lastFrameTime = std::chrono::high_resolution_clock::now();

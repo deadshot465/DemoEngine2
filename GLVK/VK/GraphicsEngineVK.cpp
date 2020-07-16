@@ -7,8 +7,8 @@
 #include <unordered_set>
 #include <cstring>
 
-GLVK::VK::GraphicsEngine::GraphicsEngine(GLFWwindow* window, int width, int height)
-	: m_handle(window), m_width(width), m_height(height)
+GLVK::VK::GraphicsEngine::GraphicsEngine(GLFWwindow* window, int width, int height, IResourceManager* resourceManager)
+	: IGraphics(window, width, height, resourceManager)
 {
 	try
 	{
@@ -265,7 +265,6 @@ void GLVK::VK::GraphicsEngine::CreateInstance()
 	
 	if (m_debug)
 	{
-		
 		instance_info.enabledLayerCount = static_cast<uint32_t>(m_enabledLayerNames.size());
 		instance_info.ppEnabledLayerNames = m_enabledLayerNames.data();
 	}
@@ -296,7 +295,7 @@ void GLVK::VK::GraphicsEngine::SetupDebug()
 void GLVK::VK::GraphicsEngine::CreateSurface()
 {
 	assert(m_instance);
-	auto res = glfwCreateWindowSurface(m_instance, m_handle, nullptr, reinterpret_cast<VkSurfaceKHR*>(&m_surface));
+	auto res = glfwCreateWindowSurface(m_instance, reinterpret_cast<GLFWwindow*>(m_handle), nullptr, reinterpret_cast<VkSurfaceKHR*>(&m_surface));
 	ThrowIfFailed(res, "Failed to create surface.\n");
 }
 
@@ -360,7 +359,7 @@ void GLVK::VK::GraphicsEngine::CreateSwapchain()
 	auto details = GetSwapchainDetails(m_physicalDevice, m_surface);
 	auto format = GetSurfaceFormat(details.Formats);
 	auto present_mode = GetPresentMode(details.PresentModes);
-	auto extent = GetExtent(details.SurfaceCapabilities, m_handle);
+	auto extent = GetExtent(details.SurfaceCapabilities, reinterpret_cast<GLFWwindow*>(m_handle));
 
 	uint32_t min_image_count = 0;
 	if (details.SurfaceCapabilities.maxImageCount > 0)
@@ -801,6 +800,22 @@ void GLVK::VK::GraphicsEngine::BeginRenderPass()
     }
 }
 
+void GLVK::VK::GraphicsEngine::CreateCube()
+{
+}
+
+void GLVK::VK::GraphicsEngine::CreateSphere()
+{
+}
+
+void GLVK::VK::GraphicsEngine::CreateCylinder()
+{
+}
+
+void GLVK::VK::GraphicsEngine::CreateCapsule()
+{
+}
+
 void GLVK::VK::GraphicsEngine::CreateSynchronizationObjects()
 {
     m_imageAcquiredSemaphores.resize(m_images.size());
@@ -818,5 +833,3 @@ void GLVK::VK::GraphicsEngine::CreateSynchronizationObjects()
         m_fences[i] = m_logicalDevice.createFence(fence_info);
     }
 }
-
-

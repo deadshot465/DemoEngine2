@@ -13,48 +13,81 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="ヘッダー ファイル\GLVK">
+      <UniqueIdentifier>{90376c6a-db8a-45a4-85c6-a594d5a070a0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\DX">
+      <UniqueIdentifier>{775e2ac5-58cb-4412-9847-24c52ac4daf1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\DX\DX11">
+      <UniqueIdentifier>{9c7210a7-1ad8-4267-8670-2bd91326437e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\DX\DX12">
+      <UniqueIdentifier>{228bc08a-efd6-458e-a41c-2385700b0e52}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\GLVK\VK">
+      <UniqueIdentifier>{95708e55-47a1-4b19-83ba-85364bf6ec1b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソース ファイル\DX">
+      <UniqueIdentifier>{d7e19562-b8de-46b2-8f31-d8dd45722eb4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソース ファイル\DX\DX11">
+      <UniqueIdentifier>{bd0391d2-89f3-4ca6-a067-6021efda36bb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソース ファイル\DX\DX12">
+      <UniqueIdentifier>{c2e5e271-96e5-44fe-9d41-4490cf6f2523}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソース ファイル\GLVK">
+      <UniqueIdentifier>{e95c4da8-8e75-438f-a5a1-9279fd6438e3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソース ファイル\GLVK\VK">
+      <UniqueIdentifier>{0cc303d9-bee7-45e6-8e96-9b0d484afc18}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DemoEngine.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="DX\WindowDX.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="Interfaces\IWindow.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="DX\DX11\GraphicsEngineDX11.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DX\DX11\SwapChainDX11.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="Interfaces\ISwapChainDX.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DX\DX11\DeviceContext.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DX\DX11\BufferFactory.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="GLVK\WindowGLVK.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="GLVK\VK\BufferVK.cpp">
+      <Filter>ソース ファイル\GLVK\VK</Filter>
     </ClCompile>
     <ClCompile Include="GLVK\VK\GraphicsEngineVK.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>ソース ファイル\GLVK\VK</Filter>
     </ClCompile>
     <ClCompile Include="GLVK\VK\ImageVK.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="GLVK\VK\ShaderVK.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="GLVK\VK\BufferVK.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>ソース ファイル\GLVK\VK</Filter>
     </ClCompile>
     <ClCompile Include="GLVK\VK\PipelineVK.cpp">
+      <Filter>ソース ファイル\GLVK\VK</Filter>
+    </ClCompile>
+    <ClCompile Include="GLVK\VK\ShaderVK.cpp">
+      <Filter>ソース ファイル\GLVK\VK</Filter>
+    </ClCompile>
+    <ClCompile Include="Interfaces\ISwapChainDX.cpp">
+      <Filter>ソース ファイル\DX</Filter>
+    </ClCompile>
+    <ClCompile Include="DX\DX11\SwapChainDX11.cpp">
+      <Filter>ソース ファイル\DX\DX11</Filter>
+    </ClCompile>
+    <ClCompile Include="DX\DX11\GraphicsEngineDX11.cpp">
+      <Filter>ソース ファイル\DX\DX11</Filter>
+    </ClCompile>
+    <ClCompile Include="DX\WindowDX.cpp">
+      <Filter>ソース ファイル\DX</Filter>
+    </ClCompile>
+    <ClCompile Include="GLVK\WindowGLVK.cpp">
+      <Filter>ソース ファイル\GLVK</Filter>
+    </ClCompile>
+    <ClCompile Include="DX\DX11\DeviceContext.cpp">
+      <Filter>ソース ファイル\DX\DX11</Filter>
+    </ClCompile>
+    <ClCompile Include="DX\DX11\BufferFactory.cpp">
+      <Filter>ソース ファイル\DX\DX11</Filter>
+    </ClCompile>
+    <ClCompile Include="Game.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
@@ -62,58 +95,70 @@
     <ClInclude Include="Interfaces\IWindow.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="DX\WindowDX.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DX\DX11\GraphicsEngineDX11.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DX\DX11\SwapChainDX11.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="Interfaces\ISwapChainDX.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DX\DX11\DeviceContext.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DX\DX11\BufferFactory.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DX\DX11\ShaderDX11.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DX\DX11\UtilsDX11.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="UtilsCommon.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="DX\DX11\BufferFactory.h">
+      <Filter>ヘッダー ファイル\DX\DX11</Filter>
+    </ClInclude>
+    <ClInclude Include="DX\DX11\DeviceContext.h">
+      <Filter>ヘッダー ファイル\DX\DX11</Filter>
+    </ClInclude>
+    <ClInclude Include="Interfaces\ISwapChainDX.h">
+      <Filter>ヘッダー ファイル\DX</Filter>
+    </ClInclude>
+    <ClInclude Include="DX\DX11\ShaderDX11.h">
+      <Filter>ヘッダー ファイル\DX\DX11</Filter>
+    </ClInclude>
     <ClInclude Include="DX\UtilsDX.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>ヘッダー ファイル\DX</Filter>
     </ClInclude>
-    <ClInclude Include="GLVK\WindowGLVK.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="GLVK\VK\GraphicsEngineVK.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="GLVK\VK\UtilsVK.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="GLVK\VK\ImageVK.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="Interfaces\IMappableVK.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="GLVK\VK\ShaderVK.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="GLVK\VK\BufferVK.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="DX\DX11\UtilsDX11.h">
+      <Filter>ヘッダー ファイル\DX\DX11</Filter>
     </ClInclude>
     <ClInclude Include="GLVK\VK\PipelineVK.h">
+      <Filter>ヘッダー ファイル\GLVK\VK</Filter>
+    </ClInclude>
+    <ClInclude Include="GLVK\VK\ShaderVK.h">
+      <Filter>ヘッダー ファイル\GLVK\VK</Filter>
+    </ClInclude>
+    <ClInclude Include="Interfaces\IMappableVK.h">
+      <Filter>ヘッダー ファイル\GLVK\VK</Filter>
+    </ClInclude>
+    <ClInclude Include="GLVK\VK\ImageVK.h">
+      <Filter>ヘッダー ファイル\GLVK\VK</Filter>
+    </ClInclude>
+    <ClInclude Include="GLVK\VK\GraphicsEngineVK.h">
+      <Filter>ヘッダー ファイル\GLVK\VK</Filter>
+    </ClInclude>
+    <ClInclude Include="DX\WindowDX.h">
+      <Filter>ヘッダー ファイル\DX</Filter>
+    </ClInclude>
+    <ClInclude Include="DX\DX11\GraphicsEngineDX11.h">
+      <Filter>ヘッダー ファイル\DX\DX11</Filter>
+    </ClInclude>
+    <ClInclude Include="DX\DX11\SwapChainDX11.h">
+      <Filter>ヘッダー ファイル\DX\DX11</Filter>
+    </ClInclude>
+    <ClInclude Include="GLVK\VK\BufferVK.h">
+      <Filter>ヘッダー ファイル\GLVK\VK</Filter>
+    </ClInclude>
+    <ClInclude Include="GLVK\VK\UtilsVK.h">
+      <Filter>ヘッダー ファイル\GLVK\VK</Filter>
+    </ClInclude>
+    <ClInclude Include="GLVK\WindowGLVK.h">
+      <Filter>ヘッダー ファイル\GLVK</Filter>
+    </ClInclude>
+    <ClInclude Include="Game.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Interfaces\IGraphics.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Interfaces\IResourceManager.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Interfaces\IDisposable.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>

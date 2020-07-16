@@ -1,6 +1,7 @@
 #include "WindowDX.h"
 #include <stdexcept>
 #include <cassert>
+#include "../Interfaces/IGraphics.h"
 #include "DX11/GraphicsEngineDX11.h"
 
 RECT DX::Window::GetClientWindowRect(HWND hwnd) noexcept
@@ -18,9 +19,7 @@ DX::Window::Window(std::wstring_view title, int width, int height, bool fullScre
 
 DX::Window::~Window()
 {
-	m_graphicsEngineDX11.reset();
-
-	::DestroyWindow(m_handle);
+	::DestroyWindow(reinterpret_cast<HWND>(m_handle));
 	::UnregisterClassW(L"DemoEngineClass", nullptr);
 }
 
@@ -47,7 +46,7 @@ void DX::Window::Run()
 {
 	auto msg = MSG();
 	
-	while (::PeekMessageW(&msg, m_handle, NULL, NULL, PM_REMOVE))
+	while (::PeekMessageW(&msg, reinterpret_cast<HWND>(m_handle), NULL, NULL, PM_REMOVE))
 	{
 		::TranslateMessage(&msg);
 		::DispatchMessageW(&msg);
@@ -56,15 +55,15 @@ void DX::Window::Run()
 	::Sleep(1);
 }
 
-void DX::Window::Setup()
+void DX::Window::Setup(IGraphics* graphics)
 {
-	auto rect = GetClientWindowRect(m_handle);
+	auto rect = GetClientWindowRect(reinterpret_cast<HWND>(m_handle));
 	auto width = static_cast<int>(rect.right - rect.left);
 	auto height = static_cast<int>(rect.bottom - rect.top);
 
 	try
 	{
-		m_graphicsEngineDX11 = std::make_unique<DX11::GraphicsEngine>(m_handle, width, height);
+		Graphics = graphics;
 	}
 	catch (const std::exception&)
 	{
@@ -76,17 +75,20 @@ void DX::Window::Update()
 {
 	using namespace std::chrono;
 
+	if (!Graphics) return;
+
 	auto current_frame = high_resolution_clock::now();
 	auto elapsed = duration<float, seconds::period>(current_frame - m_lastFrameTime).count();
 
-	m_graphicsEngineDX11->Update(elapsed);
+	Graphics->Update(elapsed);
 
 	m_lastFrameTime = current_frame;
 }
 
 void DX::Window::Render()
 {
-	m_graphicsEngineDX11->Render();
+	if (!Graphics) return;
+	Graphics->Render();
 }
 
 void DX::Window::Dispose()
@@ -111,7 +113,6 @@ LRESULT DX::Window::WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 		{
 			auto window = reinterpret_cast<Window*>(reinterpret_cast<LPCREATESTRUCTW>(lparam)->lpCreateParams);
 			window->SetHwnd(hwnd);
-			window->Setup();
 			::SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(window));
 			break;
 		}
@@ -187,15 +188,15 @@ void DX::Window::Create()
 		throw std::runtime_error("Failed to create window.");
 	}
 
-	::SetWindowLongPtrW(m_handle, GCLP_HCURSOR, reinterpret_cast<LONG_PTR>(LoadCursorW(nullptr, IDC_ARROW)));
-	::SetWindowLongPtrW(m_handle, GCLP_HICON, reinterpret_cast<LONG_PTR>(LoadIconW(nullptr, IDI_WINLOGO)));
-	::SetWindowLongPtrW(m_handle, GCLP_HICONSM, reinterpret_cast<LONG_PTR>(LoadIconW(nullptr, IDI_WINLOGO)));
+	::SetWindowLongPtrW(reinterpret_cast<HWND>(m_handle), GCLP_HCURSOR, reinterpret_cast<LONG_PTR>(LoadCursorW(nullptr, IDC_ARROW)));
+	::SetWindowLongPtrW(reinterpret_cast<HWND>(m_handle), GCLP_HICON, reinterpret_cast<LONG_PTR>(LoadIconW(nullptr, IDI_WINLOGO)));
+	::SetWindowLongPtrW(reinterpret_cast<HWND>(m_handle), GCLP_HICONSM, reinterpret_cast<LONG_PTR>(LoadIconW(nullptr, IDI_WINLOGO)));
 
-	::ShowWindow(m_handle, SW_SHOW);
-	::SetForegroundWindow(m_handle);
-	::SetFocus(m_handle);
+	::ShowWindow(reinterpret_cast<HWND>(m_handle), SW_SHOW);
+	::SetForegroundWindow(reinterpret_cast<HWND>(m_handle));
+	::SetFocus(reinterpret_cast<HWND>(m_handle));
 
-	::UpdateWindow(m_handle);
+	::UpdateWindow(reinterpret_cast<HWND>(m_handle));
 
 	m_isInitialized = true;
 	m_lastFrameTime = std::chrono::high_resolution_clock::now();
