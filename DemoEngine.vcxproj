@@ -191,7 +191,9 @@
     <ClInclude Include="Interfaces\IMappableVK.h" />
     <ClInclude Include="Interfaces\IResourceManager.h" />
     <ClInclude Include="Interfaces\ISwapChainDX.h" />
+    <ClInclude Include="Interfaces\IVertex.h" />
     <ClInclude Include="Interfaces\IWindow.h" />
+    <ClInclude Include="Structures\Model.h" />
     <ClInclude Include="UtilsCommon.h" />
   </ItemGroup>
   <ItemGroup>

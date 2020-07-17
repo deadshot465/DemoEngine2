@@ -2,6 +2,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <memory>
+#include <string_view>
 #include <vector>
 #include <vulkan/vulkan.hpp>
 #include "../../Interfaces/IGraphics.h"
@@ -29,6 +30,7 @@ namespace GLVK
 
 			virtual void Update(float deltaTime) override;
 			virtual void Render() override;
+			virtual void* LoadTexture(std::string_view fileName) override;
 			virtual void CreateCube() override;
 			virtual void CreateSphere() override;
 			virtual void CreateCylinder() override;

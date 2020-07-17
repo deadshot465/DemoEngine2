@@ -103,6 +103,10 @@ void GLVK::VK::GraphicsEngine::Render()
     m_currentImageIndex = (m_currentImageIndex + 1) % m_images.size();
 }
 
+void* GLVK::VK::GraphicsEngine::LoadTexture(std::string_view fileName)
+{
+}
+
 std::vector<const char*> GLVK::VK::GraphicsEngine::GetRequiredExtensions(bool debug) noexcept
 {
 	uint32_t extension_count = 0;

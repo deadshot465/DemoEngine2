@@ -32,7 +32,6 @@ namespace GLVK
 		void Create();
 
 		std::chrono::time_point<std::chrono::steady_clock> m_lastFrameTime;
-		//std::unique_ptr<VK::GraphicsEngine> m_graphicsEngineVk = nullptr;
 	};
 }
 

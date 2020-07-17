@@ -1,4 +1,5 @@
 #pragma once
+#include <string_view>
 #include "IResourceManager.h"
 
 class IGraphics
@@ -14,6 +15,7 @@ public:
 	virtual void Update(float deltaTime) = 0;
 	virtual void Render() = 0;
 
+	virtual void* LoadTexture(std::string_view fileName) = 0;
 	virtual void CreateCube() = 0;
 	virtual void CreateSphere() = 0;
 	virtual void CreateCylinder() = 0;

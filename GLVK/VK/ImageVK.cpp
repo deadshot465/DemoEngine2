@@ -4,17 +4,17 @@
 #include "UtilsVK.h"
 
 GLVK::VK::Image::Image(const vk::Device& device)
-	: IMappable(device)
+	: IMappable(device), IDisposable()
 {
 }
 
 GLVK::VK::Image::Image(const vk::Device& device, vk::Image& image)
-	: IMappable(device), m_image(std::move(image))
+	: IMappable(device), m_image(std::move(image)), IDisposable()
 {
 }
 
 GLVK::VK::Image::Image(const vk::Device& device, const vk::Format& format, const vk::SampleCountFlagBits& sampleCount, const vk::Extent2D& extent, const vk::ImageType& imageType, uint32_t mipLevels, const vk::ImageUsageFlags& imageUsage)
-	: IMappable(device)
+	: IMappable(device), IDisposable()
 {
 	auto info = vk::ImageCreateInfo();
 	info.arrayLayers = 1;
@@ -37,15 +37,7 @@ GLVK::VK::Image::Image(const vk::Device& device, const vk::Format& format, const
 
 GLVK::VK::Image::~Image()
 {
-	if (m_imageView)
-	{
-		m_logicalDevice.destroyImageView(m_imageView);
-	}
-
-	if (m_deviceMemory)
-	{
-		m_logicalDevice.destroyImage(m_image);
-	}
+	Dispose();
 }
 
 void GLVK::VK::Image::CreateImageView(const vk::Format& format, const vk::ImageAspectFlags& aspectMask, uint32_t levelCount, const vk::ImageViewType& imageViewType)
@@ -101,6 +93,19 @@ void GLVK::VK::Image::TransitionLayout(const vk::ImageLayout& srcLayout, const v
 
 	cmd_buffer.pipelineBarrier(old_stage, new_stage, {}, {}, {}, barrier);
 	ExecuteCommandBuffer(cmd_buffer, m_logicalDevice, commandPool, graphicsQueue);
+}
+
+void GLVK::VK::Image::Dispose()
+{
+	if (m_imageView)
+	{
+		m_logicalDevice.destroyImageView(m_imageView);
+	}
+
+	if (m_deviceMemory)
+	{
+		m_logicalDevice.destroyImage(m_image);
+	}
 }
 
 const vk::DeviceMemory& GLVK::VK::Image::AllocateMemory(const vk::PhysicalDevice& physicalDevice, const vk::MemoryPropertyFlags& memoryProperties)

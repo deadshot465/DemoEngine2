@@ -5,7 +5,7 @@
 class IDisposable
 {
 public:
-	IDisposable(void* pUserData)
+	IDisposable(void* pUserData = nullptr)
 		: m_handle(pUserData)
 	{
 

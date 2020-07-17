@@ -1,5 +1,6 @@
 #pragma once
 #include <vulkan/vulkan.hpp>
+#include "../../Interfaces/IDisposable.h"
 #include "../../Interfaces/IMappableVK.h"
 
 namespace GLVK
@@ -7,13 +8,15 @@ namespace GLVK
 	namespace VK
 	{
 		class Image
-			: public IMappable
+			: public IDisposable, public IMappable
 		{
 		public:
 			Image(const vk::Device& device);
 			Image(const vk::Device& device, vk::Image& image);
 			Image(const vk::Device& device, const vk::Format& format, const vk::SampleCountFlagBits& sampleCount, const vk::Extent2D& extent, const vk::ImageType& imageType, uint32_t mipLevels, const vk::ImageUsageFlags& imageUsage);
 			virtual ~Image();
+
+			virtual void Dispose() override;
 
 			virtual const vk::DeviceMemory& AllocateMemory(const vk::PhysicalDevice& physicalDevice, const vk::MemoryPropertyFlags& memoryProperties) override;
 
@@ -26,7 +29,7 @@ namespace GLVK
 
 		private:
 			vk::Image m_image = nullptr;
-			vk::ImageView m_imageView = nullptr;
+			vk::ImageView m_imageView = nullptr;			
 		};
 	}
 }

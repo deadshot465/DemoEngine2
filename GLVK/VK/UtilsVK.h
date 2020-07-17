@@ -7,6 +7,7 @@
 #include <string_view>
 #include <vector>
 #include <vulkan/vulkan.hpp>
+#include "../../Interfaces/IVertex.h"
 
 namespace GLVK
 {
@@ -31,11 +32,8 @@ namespace GLVK
         };
 
 		struct Vertex
+			: public IVertex<glm::vec3, glm::vec2>
 		{
-			glm::vec3 Position;
-			glm::vec3 Normal;
-			glm::vec2 TexCoord;
-
 			static std::vector<vk::VertexInputAttributeDescription> GetVertexInputAttributeDescription(uint32_t binding) noexcept
 			{
 				auto descs = std::vector<vk::VertexInputAttributeDescription>(3);
