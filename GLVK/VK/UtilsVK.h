@@ -34,6 +34,12 @@ namespace GLVK
 		struct Vertex
 			: public IVertex<glm::vec3, glm::vec2>
 		{
+			Vertex(const glm::vec3& position, const glm::vec3& normal, const glm::vec2& texCoord)
+				: IVertex<glm::vec3, glm::vec2>(position, normal, texCoord)
+			{
+
+			}
+
 			static std::vector<vk::VertexInputAttributeDescription> GetVertexInputAttributeDescription(uint32_t binding) noexcept
 			{
 				auto descs = std::vector<vk::VertexInputAttributeDescription>(3);

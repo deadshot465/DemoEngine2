@@ -11,9 +11,9 @@ Game::Game(std::wstring_view title, int width, int height, bool fullScreen)
 
 Game::~Game()
 {
+	if (m_resourceManager) m_resourceManager.reset();
 	if (m_graphics) m_graphics.reset();
 	if (m_window) m_window.reset();
-	if (m_resourceManager) m_resourceManager.reset();
 }
 
 bool Game::Initialize()

@@ -1,5 +1,6 @@
 #pragma once
 #include <algorithm>
+#include <concepts>
 #include <memory>
 #include <stdexcept>
 #include <string_view>
@@ -9,14 +10,17 @@
 #include "IDisposable.h"
 #include "../UtilsCommon.h"
 
+template <typename T>
+concept Disposable = std::is_base_of_v<IDisposable, T> && std::is_convertible_v<const volatile T*, const volatile IDisposable*>;
+
 class IResourceManager
 {
 public:
-	template <typename T>
+	template <Disposable T>
 	T* AddResource(std::unique_ptr<T>& resource);
-	template <typename T>
+	template <Disposable T>
 	T* AddResource(std::unique_ptr<T>& resource, std::string_view resourceName);
-	template <typename T>
+	template <Disposable T>
 	T* GetResource(std::string_view resourceName);
 	
 	void RemoveResource(std::string_view resourceName)
@@ -46,32 +50,23 @@ public:
 	}
 };
 
-template<typename T>
+template<Disposable T>
 inline T* IResourceManager::AddResource(std::unique_ptr<T>& resource)
 {
-	if constexpr (!std::is_base_of_v<IDisposable, T>)
-		throw std::runtime_error("Resource must be derived from IDisposable interface.\n");
-	
 	return AddResource(resource, GetRandomString(7));
 }
 
-template<typename T>
+template<Disposable T>
 inline T* IResourceManager::AddResource(std::unique_ptr<T>& resource, std::string_view resourceName)
 {
-	if constexpr (!std::is_base_of_v<IDisposable, T>)
-		throw std::runtime_error("Resource must be derived from IDisposable interface.\n");
-
 	auto& resource = m_resources.emplace_back(std::move(resource));
 	resource->get()->Name = resourceName;
 	return resource->get();
 }
 
-template<typename T>
+template<Disposable T>
 inline T* IResourceManager::GetResource(std::string_view resourceName)
 {
-	if constexpr (!std::is_base_of_v<IDisposable, T>)
-		throw std::runtime_error("Resource must be derived from IDisposable interface.\n");
-	
 	auto item = std::find_if(m_resources.begin(), m_resources.end(), [&](const std::unique_ptr<IDisposable>& resource) {
 		return resource->Name == resourceName;
 		});

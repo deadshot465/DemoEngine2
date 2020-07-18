@@ -89,6 +89,8 @@ namespace GLVK
 			vk::Instance m_instance = nullptr;
 			vk::DebugUtilsMessengerEXT m_debugUtils = nullptr;
 			vk::PhysicalDevice m_physicalDevice = nullptr;
+			vk::PhysicalDeviceProperties m_physicalDeviceProperties;
+			vk::PhysicalDeviceFeatures m_physicalDeviceFeatures;
 			vk::SampleCountFlagBits m_msaaSampleCount = {};
 			vk::SurfaceKHR m_surface = nullptr;
 			QueueIndices m_queueIndices = {};

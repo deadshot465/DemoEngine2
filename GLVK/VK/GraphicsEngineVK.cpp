@@ -4,6 +4,8 @@
 #include <chrono>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 #include <unordered_set>
 #include <cstring>
 
@@ -105,6 +107,28 @@ void GLVK::VK::GraphicsEngine::Render()
 
 void* GLVK::VK::GraphicsEngine::LoadTexture(std::string_view fileName)
 {
+	int width = 0;
+	int height = 0;
+	int channels = 0;
+	auto image = stbi_load(fileName.data(), &width, &height, &channels, STBI_rgb_alpha);
+	auto size = static_cast<vk::DeviceSize>(width) * height * 4;
+
+	m_intermediateBuffer.reset(new Buffer(m_logicalDevice, vk::BufferUsageFlagBits::eTransferSrc, size));
+	m_intermediateBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible);
+	auto mapped_data = m_logicalDevice.mapMemory(m_intermediateBuffer->GetDeviceMemory(), 0, size);
+	memcpy(mapped_data, image, size);
+	m_logicalDevice.unmapMemory(m_intermediateBuffer->GetDeviceMemory());
+	stbi_image_free(image);
+
+	auto mip_level_count = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
+
+	auto texture = std::make_unique<Image>(m_logicalDevice, m_format, vk::SampleCountFlagBits::e1, vk::Extent2D(static_cast<uint32_t>(width), static_cast<uint32_t>(height)), vk::ImageType::e2D, mip_level_count, vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled);
+	texture->TransitionLayout(vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, m_commandPool, m_graphicsQueue, vk::ImageAspectFlagBits::eColor, mip_level_count);
+	m_intermediateBuffer->CopyBufferToImage(texture->GetImage(), static_cast<uint32_t>(height), static_cast<uint32_t>(width), size, vk::ImageAspectFlagBits::eColor, m_commandPool, m_graphicsQueue);
+	texture->GenerateMipmaps(m_commandPool, m_graphicsQueue, mip_level_count);
+	texture->CreateImageView(m_format, vk::ImageAspectFlagBits::eColor, mip_level_count, vk::ImageViewType::e2D);
+	texture->CreateSampler(mip_level_count);
+	m_resourceManager->AddResource(texture);
 }
 
 std::vector<const char*> GLVK::VK::GraphicsEngine::GetRequiredExtensions(bool debug) noexcept
@@ -152,7 +176,7 @@ bool GLVK::VK::GraphicsEngine::IsDeviceSuitable(const vk::PhysicalDevice& device
 	std::cout << "Device: " << properties.deviceName << '\n';
 
 	auto features = device.getFeatures();
-	auto feature_supports = features.samplerAnisotropy && features.sampleRateShading;
+	auto feature_supports = features.samplerAnisotropy && features.sampleRateShading && features.shaderSampledImageArrayDynamicIndexing;
 
 	auto swapchain_details = GetSwapchainDetails(device, surface);
 	auto is_swapchain_adequate = swapchain_details.Formats.size() > 0 && swapchain_details.PresentModes.size() > 0;
@@ -312,6 +336,8 @@ void GLVK::VK::GraphicsEngine::GetPhysicalDevice()
 		{
 			m_physicalDevice = device;
 			m_msaaSampleCount = GetMsaaSampleCounts(device);
+			m_physicalDeviceProperties = device.getProperties();
+			m_physicalDeviceFeatures = device.getFeatures();
 			break;
 		}
 	}
@@ -428,6 +454,8 @@ void GLVK::VK::GraphicsEngine::LoadShader()
 
 void GLVK::VK::GraphicsEngine::LoadDefaultCube()
 {
+	glm::vec3 test = { 0.05f,0.01f,0.01f };
+
 	m_cubeVertices =
 	{
 		// Front Face
@@ -495,7 +523,6 @@ void GLVK::VK::GraphicsEngine::CreateVertexBuffers()
 	m_logicalDevice.unmapMemory(memory);
 
 	m_vertexBuffer = std::make_unique<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, buffer_size);
-	m_vertexBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eDeviceLocal);
 	m_vertexBuffer->CopyBufferToBuffer(m_intermediateBuffer->GetBuffer(), buffer_size, m_commandPool, m_graphicsQueue);
 }
 
@@ -509,7 +536,6 @@ void GLVK::VK::GraphicsEngine::CreateIndexBuffers()
 	m_logicalDevice.unmapMemory(memory);
 
 	m_indexBuffer = std::make_unique<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, buffer_size);
-	m_indexBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eDeviceLocal);
 	m_indexBuffer->CopyBufferToBuffer(m_intermediateBuffer->GetBuffer(), buffer_size, m_commandPool, m_graphicsQueue);
 }
 
@@ -596,7 +622,6 @@ void GLVK::VK::GraphicsEngine::CreateDepthImage()
 	auto format = GetDepthFormat(m_physicalDevice, vk::ImageTiling::eOptimal);
 	m_depthImage = std::make_unique<Image>(m_logicalDevice, format, m_msaaSampleCount, m_extent, vk::ImageType::e2D, 1, vk::ImageUsageFlagBits::eDepthStencilAttachment);
 
-	m_depthImage->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eDeviceLocal);
 	m_depthImage->CreateImageView(format, vk::ImageAspectFlagBits::eDepth, 1, vk::ImageViewType::e2D);
 	m_depthImage->TransitionLayout(vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthAttachmentOptimal, m_commandPool, m_graphicsQueue, vk::ImageAspectFlagBits::eDepth, 1);
 }
@@ -605,7 +630,6 @@ void GLVK::VK::GraphicsEngine::CreateMultisamplingImage()
 {
 	m_msaaImage = std::make_unique<Image>(m_logicalDevice, m_format, m_msaaSampleCount, m_extent, vk::ImageType::e2D, 1, vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment);
 
-	m_msaaImage->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eDeviceLocal);
 	m_msaaImage->CreateImageView(m_format, vk::ImageAspectFlagBits::eColor, 1, vk::ImageViewType::e2D);
 	m_msaaImage->TransitionLayout(vk::ImageLayout::eUndefined, vk::ImageLayout::eColorAttachmentOptimal, m_commandPool, m_graphicsQueue, vk::ImageAspectFlagBits::eColor, 1);
 }
