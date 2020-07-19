@@ -123,12 +123,13 @@ void* GLVK::VK::GraphicsEngine::LoadTexture(std::string_view fileName)
 	auto mip_level_count = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
 
 	auto texture = std::make_unique<Image>(m_logicalDevice, m_format, vk::SampleCountFlagBits::e1, vk::Extent2D(static_cast<uint32_t>(width), static_cast<uint32_t>(height)), vk::ImageType::e2D, mip_level_count, vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled);
+	texture->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eDeviceLocal);
 	texture->TransitionLayout(vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, m_commandPool, m_graphicsQueue, vk::ImageAspectFlagBits::eColor, mip_level_count);
 	m_intermediateBuffer->CopyBufferToImage(texture->GetImage(), static_cast<uint32_t>(height), static_cast<uint32_t>(width), size, vk::ImageAspectFlagBits::eColor, m_commandPool, m_graphicsQueue);
 	texture->GenerateMipmaps(m_commandPool, m_graphicsQueue, mip_level_count);
 	texture->CreateImageView(m_format, vk::ImageAspectFlagBits::eColor, mip_level_count, vk::ImageViewType::e2D);
 	texture->CreateSampler(mip_level_count);
-	m_resourceManager->AddResource(texture);
+	return m_resourceManager->AddResource(texture);
 }
 
 std::vector<const char*> GLVK::VK::GraphicsEngine::GetRequiredExtensions(bool debug) noexcept
@@ -523,6 +524,7 @@ void GLVK::VK::GraphicsEngine::CreateVertexBuffers()
 	m_logicalDevice.unmapMemory(memory);
 
 	m_vertexBuffer = std::make_unique<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, buffer_size);
+	m_vertexBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eDeviceLocal);
 	m_vertexBuffer->CopyBufferToBuffer(m_intermediateBuffer->GetBuffer(), buffer_size, m_commandPool, m_graphicsQueue);
 }
 
@@ -536,6 +538,7 @@ void GLVK::VK::GraphicsEngine::CreateIndexBuffers()
 	m_logicalDevice.unmapMemory(memory);
 
 	m_indexBuffer = std::make_unique<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, buffer_size);
+	m_indexBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eDeviceLocal);
 	m_indexBuffer->CopyBufferToBuffer(m_intermediateBuffer->GetBuffer(), buffer_size, m_commandPool, m_graphicsQueue);
 }
 
@@ -621,7 +624,7 @@ void GLVK::VK::GraphicsEngine::CreateDepthImage()
 {
 	auto format = GetDepthFormat(m_physicalDevice, vk::ImageTiling::eOptimal);
 	m_depthImage = std::make_unique<Image>(m_logicalDevice, format, m_msaaSampleCount, m_extent, vk::ImageType::e2D, 1, vk::ImageUsageFlagBits::eDepthStencilAttachment);
-
+	m_depthImage->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eDeviceLocal);
 	m_depthImage->CreateImageView(format, vk::ImageAspectFlagBits::eDepth, 1, vk::ImageViewType::e2D);
 	m_depthImage->TransitionLayout(vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthAttachmentOptimal, m_commandPool, m_graphicsQueue, vk::ImageAspectFlagBits::eDepth, 1);
 }
@@ -629,7 +632,7 @@ void GLVK::VK::GraphicsEngine::CreateDepthImage()
 void GLVK::VK::GraphicsEngine::CreateMultisamplingImage()
 {
 	m_msaaImage = std::make_unique<Image>(m_logicalDevice, m_format, m_msaaSampleCount, m_extent, vk::ImageType::e2D, 1, vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment);
-
+	m_msaaImage->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eDeviceLocal);
 	m_msaaImage->CreateImageView(m_format, vk::ImageAspectFlagBits::eColor, 1, vk::ImageViewType::e2D);
 	m_msaaImage->TransitionLayout(vk::ImageLayout::eUndefined, vk::ImageLayout::eColorAttachmentOptimal, m_commandPool, m_graphicsQueue, vk::ImageAspectFlagBits::eColor, 1);
 }
@@ -815,13 +818,13 @@ void GLVK::VK::GraphicsEngine::BeginRenderPass()
         m_commandBuffers[i].begin(begin_info);
         m_commandBuffers[i].beginRenderPass(renderpass_info, vk::SubpassContents::eInline);
 
-        m_commandBuffers[i].setViewport(0, { vk::Viewport(0.0f, 0.0f, m_extent.width, m_extent.height, 0.0f, 1.0f) });
+		m_commandBuffers[i].setViewport(0, { vk::Viewport(0.0f, 0.0f, static_cast<float>(m_extent.width), static_cast<float>(m_extent.height), 0.0f, 1.0f) });
         m_commandBuffers[i].setScissor(0, { scissor });
         m_commandBuffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_pipeline->GetPipelineLayout(), 0, { m_descriptorSets[i] }, nullptr);
         m_commandBuffers[i].bindVertexBuffers(0, m_vertexBuffer->GetBuffer(), { 0 });
         m_commandBuffers[i].bindIndexBuffer(m_indexBuffer->GetBuffer(), 0, vk::IndexType::eUint32);
         m_commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, m_pipeline->GetPipeline(BlendMode::None));
-        m_commandBuffers[i].drawIndexed(m_cubeIndices.size(), 1, 0, 0, 0);
+        m_commandBuffers[i].drawIndexed(static_cast<uint32_t>(m_cubeIndices.size()), 1, 0, 0, 0);
 
         m_commandBuffers[i].endRenderPass();
         m_commandBuffers[i].end();

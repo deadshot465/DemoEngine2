@@ -113,10 +113,10 @@ void GLVK::VK::Image::GenerateMipmaps(const vk::CommandPool& commandPool, const 
 	barrier.subresourceRange.layerCount = 1;
 	barrier.subresourceRange.levelCount = 1;
 
-	auto width = m_width;
-	auto height = m_height;
+	auto width = static_cast<int32_t>(m_width);
+	auto height = static_cast<int32_t>(m_height);
 
-	for (auto i = 1; i < levelCount; ++i)
+	for (uint32_t i = 1; i < levelCount; ++i)
 	{
 		barrier.subresourceRange.baseMipLevel = i - 1;
 		barrier.newLayout = vk::ImageLayout::eTransferSrcOptimal;

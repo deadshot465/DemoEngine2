@@ -59,9 +59,9 @@ inline T* IResourceManager::AddResource(std::unique_ptr<T>& resource)
 template<Disposable T>
 inline T* IResourceManager::AddResource(std::unique_ptr<T>& resource, std::string_view resourceName)
 {
-	auto& resource = m_resources.emplace_back(std::move(resource));
-	resource->get()->Name = resourceName;
-	return resource->get();
+	auto& _resource = m_resources.emplace_back(std::move(resource));
+	_resource->Name = resourceName;
+	return dynamic_cast<T*>(_resource.get());
 }
 
 template<Disposable T>
