@@ -7,6 +7,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include <unordered_set>
+#include <cmath>
 #include <cstring>
 
 GLVK::VK::GraphicsEngine::GraphicsEngine(GLFWwindow* window, int width, int height, IResourceManager* resourceManager)

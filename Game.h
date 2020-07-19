@@ -1,6 +1,9 @@
 #pragma once
 #include <memory>
 #include <string_view>
+#include "Interfaces/IGraphics.h"
+#include "Interfaces/IResourceManager.h"
+#include "Interfaces/IWindow.h"
 
 class IWindow;
 class IGraphics;

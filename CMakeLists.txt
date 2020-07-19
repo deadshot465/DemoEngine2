@@ -17,8 +17,13 @@ include_directories(Includes)
 
 add_executable(DemoEngine
         DemoEngine.cpp
+        Game.h Game.cpp
         UtilsCommon.h
+        Interfaces/IDisposable.h
+        Interfaces/IGraphics.h
         Interfaces/IMappableVK.h
+        Interfaces/IResourceManager.h
+        Interfaces/IVertex.h
         Interfaces/IWindow.h Interfaces/IWindow.cpp
         GLVK/WindowGLVK.h GLVK/WindowGLVK.cpp
         GLVK/VK/BufferVK.h GLVK/VK/BufferVK.cpp
@@ -26,7 +31,8 @@ add_executable(DemoEngine
         GLVK/VK/ImageVK.h GLVK/VK/ImageVK.cpp
         GLVK/VK/PipelineVK.h GLVK/VK/PipelineVK.cpp
         GLVK/VK/ShaderVK.h GLVK/VK/ShaderVK.cpp
-        GLVK/VK/UtilsVK.h)
+        GLVK/VK/UtilsVK.h
+        Structures/Model.h)
 target_include_directories(DemoEngine PUBLIC /Users/Deadshot465/vulkansdk-macos-1.2.141.2/macOS/include)
 target_link_libraries(DemoEngine ${CoreVideoLib})
 target_link_libraries(DemoEngine ${IOKitLib})
