@@ -92,6 +92,12 @@ void GLVK::VK::Image::TransitionLayout(const vk::ImageLayout& srcLayout, const v
 		old_stage = vk::PipelineStageFlagBits::eTopOfPipe;
 		barrier.dstAccessMask = vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
 	}
+	else if (srcLayout == vk::ImageLayout::eUndefined && dstLayout == vk::ImageLayout::eTransferDstOptimal)
+	{
+		new_stage = vk::PipelineStageFlagBits::eTransfer;
+		old_stage = vk::PipelineStageFlagBits::eTopOfPipe;
+		barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+	}
 
 	cmd_buffer.pipelineBarrier(old_stage, new_stage, {}, {}, {}, barrier);
 	ExecuteCommandBuffer(cmd_buffer, m_logicalDevice, commandPool, graphicsQueue);
@@ -190,6 +196,8 @@ void GLVK::VK::Image::CreateSampler(uint32_t levelCount)
 
 void GLVK::VK::Image::Dispose()
 {
+	if (m_isDisposed) return;
+
 	if (m_sampler)
 		m_logicalDevice.destroySampler(m_sampler);
 
@@ -198,6 +206,8 @@ void GLVK::VK::Image::Dispose()
 
 	if (m_deviceMemory)
 		m_logicalDevice.destroyImage(m_image);
+
+	m_isDisposed = true;
 }
 
 const vk::DeviceMemory& GLVK::VK::Image::AllocateMemory(const vk::PhysicalDevice& physicalDevice, const vk::MemoryPropertyFlags& memoryProperties)

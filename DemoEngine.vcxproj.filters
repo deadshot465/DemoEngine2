@@ -161,10 +161,10 @@
     <ClInclude Include="Interfaces\IDisposable.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="Interfaces\IVertex.h">
+    <ClInclude Include="Structures\Model.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="Structures\Model.h">
+    <ClInclude Include="Structures\Vertex.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>

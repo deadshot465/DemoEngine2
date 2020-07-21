@@ -1,13 +1,10 @@
 #pragma once
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp>
 #include <optional>
 #include <stdexcept>
 #include <string_view>
 #include <vector>
 #include <vulkan/vulkan.hpp>
-#include "../../Interfaces/IVertex.h"
+#include "../../Structures/Vertex.h"
 
 namespace GLVK
 {
@@ -31,50 +28,40 @@ namespace GLVK
 		    std::vector<vk::PresentModeKHR> PresentModes;
         };
 
-		struct Vertex
-			: public IVertex<glm::vec3, glm::vec2>
+		inline std::vector<vk::VertexInputAttributeDescription> GetVertexInputAttributeDescription(uint32_t binding) noexcept
 		{
-			Vertex(const glm::vec3& position, const glm::vec3& normal, const glm::vec2& texCoord)
-				: IVertex<glm::vec3, glm::vec2>(position, normal, texCoord)
-			{
+			auto descs = std::vector<vk::VertexInputAttributeDescription>(3);
 
-			}
+			descs[0] = vk::VertexInputAttributeDescription();
+			descs[0].binding = binding;
+			descs[0].format = vk::Format::eR32G32B32Sfloat;
+			descs[0].location = 0;
+			descs[0].offset = offsetof(Vertex, Vertex::Position);
 
-			static std::vector<vk::VertexInputAttributeDescription> GetVertexInputAttributeDescription(uint32_t binding) noexcept
-			{
-				auto descs = std::vector<vk::VertexInputAttributeDescription>(3);
+			descs[1] = vk::VertexInputAttributeDescription();
+			descs[1].binding = binding;
+			descs[1].format = vk::Format::eR32G32B32Sfloat;
+			descs[1].location = 1;
+			descs[1].offset = offsetof(Vertex, Vertex::Normal);
 
-				descs[0] = vk::VertexInputAttributeDescription();
-				descs[0].binding = binding;
-				descs[0].format = vk::Format::eR32G32B32Sfloat;
-				descs[0].location = 0;
-				descs[0].offset = offsetof(Vertex, Position);
+			descs[2] = vk::VertexInputAttributeDescription();
+			descs[2].binding = binding;
+			descs[2].format = vk::Format::eR32G32Sfloat;
+			descs[2].location = 2;
+			descs[2].offset = offsetof(Vertex, Vertex::TexCoord);
 
-				descs[1] = vk::VertexInputAttributeDescription();
-				descs[1].binding = binding;
-				descs[1].format = vk::Format::eR32G32B32Sfloat;
-				descs[1].location = 1;
-				descs[1].offset = offsetof(Vertex, Normal);
+			return descs;
+		}
 
-				descs[2] = vk::VertexInputAttributeDescription();
-				descs[2].binding = binding;
-				descs[2].format = vk::Format::eR32G32Sfloat;
-				descs[2].location = 2;
-				descs[2].offset = offsetof(Vertex, TexCoord);
+		inline vk::VertexInputBindingDescription GetVertexInputBindingDescription(uint32_t binding, const vk::VertexInputRate& inputRate) noexcept
+		{
+			auto desc = vk::VertexInputBindingDescription();
+			desc.binding = binding;
+			desc.inputRate = inputRate;
+			desc.stride = static_cast<uint32_t>(sizeof(Vertex));
 
-				return descs;
-			}
-
-			static vk::VertexInputBindingDescription GetVertexInputBindingDescription(uint32_t binding, const vk::VertexInputRate& inputRate) noexcept
-			{
-				auto desc = vk::VertexInputBindingDescription();
-				desc.binding = binding;
-				desc.inputRate = inputRate;
-				desc.stride = static_cast<uint32_t>(sizeof(Vertex));
-
-				return desc;
-			}
-		};
+			return desc;
+		}
 
 		struct MVP
 		{

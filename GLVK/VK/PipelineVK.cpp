@@ -98,8 +98,8 @@ void GLVK::VK::Pipeline::CreateRenderPass(const vk::Format& graphicsFormat, cons
 void GLVK::VK::Pipeline::CreateGraphicPipeline(const vk::Device& device, const vk::PipelineColorBlendAttachmentState& colorBlendAttachment, const vk::SampleCountFlagBits& sampleCounts, const std::vector<vk::PipelineShaderStageCreateInfo>& shaderStageInfos, const vk::PipelineLayout& pipelineLayout, const vk::PipelineCache& pipelineCache, size_t blendModeIndex, const vk::RenderPass& renderPass, vk::Pipeline* pPipeline)
 {
 	auto vertex_input_info = vk::PipelineVertexInputStateCreateInfo();
-	auto attr_desc = Vertex::GetVertexInputAttributeDescription(0);
-	auto binding_desc = Vertex::GetVertexInputBindingDescription(0, vk::VertexInputRate::eVertex);
+	auto attr_desc = GetVertexInputAttributeDescription(0);
+	auto binding_desc = GetVertexInputBindingDescription(0, vk::VertexInputRate::eVertex);
 	vertex_input_info.pVertexAttributeDescriptions = attr_desc.data();
 	vertex_input_info.pVertexBindingDescriptions = &binding_desc;
 	vertex_input_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(attr_desc.size());

@@ -35,6 +35,11 @@ namespace GLVK
 			    return m_imageView;
             }
 
+			[[nodiscard]] const vk::Sampler GetSampler() const noexcept
+			{
+				return m_sampler;
+			}
+
 		private:
 			vk::Image m_image = nullptr;
 			vk::ImageView m_imageView = nullptr;

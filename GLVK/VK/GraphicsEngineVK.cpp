@@ -21,14 +21,15 @@ GLVK::VK::GraphicsEngine::GraphicsEngine(GLFWwindow* window, int width, int heig
 		GetPhysicalDevice();
 		CreateLogicalDevice();
 		LoadShader();
-		LoadDefaultCube();
 
 		auto pool_info = vk::CommandPoolCreateInfo();
 		pool_info.queueFamilyIndex = m_queueIndices.GraphicsQueue.value();
 		m_commandPool = m_logicalDevice.createCommandPool(pool_info);
 
-		CreateBuffers();
-		Initialize();
+		m_swapchainDetails = GetSwapchainDetails(m_physicalDevice, m_surface);
+		m_surfaceFormat = GetSurfaceFormat(m_swapchainDetails.Formats);
+		m_extent = GetExtent(m_swapchainDetails.SurfaceCapabilities, reinterpret_cast<GLFWwindow*>(m_handle));
+		m_format = m_surfaceFormat.format;
 	}
 	catch (const std::exception&)
 	{
@@ -39,11 +40,11 @@ GLVK::VK::GraphicsEngine::GraphicsEngine(GLFWwindow* window, int width, int heig
 GLVK::VK::GraphicsEngine::~GraphicsEngine()
 {
 	Dispose();
+	for (auto& mesh : m_meshes)
+		mesh.reset();
 	m_logicalDevice.destroyDescriptorSetLayout(m_descriptorSetLayout);
 	m_logicalDevice.destroyCommandPool(m_commandPool);
 	if (m_intermediateBuffer) m_intermediateBuffer.reset();
-	m_indexBuffer.reset();
-	m_vertexBuffer.reset();
 	m_vertexShader.reset();
 	m_fragmentShader.reset();
 	m_logicalDevice.destroy();
@@ -106,7 +107,37 @@ void GLVK::VK::GraphicsEngine::Render()
     m_currentImageIndex = (m_currentImageIndex + 1) % m_images.size();
 }
 
-void* GLVK::VK::GraphicsEngine::LoadTexture(std::string_view fileName)
+std::shared_ptr<IDisposable> GLVK::VK::GraphicsEngine::CreateVertexBuffer(const std::vector<Vertex>& vertices)
+{
+	static const vk::DeviceSize buffer_size = sizeof(Vertex) * vertices.size();
+	m_intermediateBuffer.reset(new Buffer(m_logicalDevice, vk::BufferUsageFlagBits::eTransferSrc, buffer_size));
+	auto memory = m_intermediateBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible);
+	void* mapped = m_logicalDevice.mapMemory(memory, 0, buffer_size);
+	memcpy(mapped, vertices.data(), buffer_size);
+	m_logicalDevice.unmapMemory(memory);
+
+	auto buffer = std::make_shared<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, buffer_size);
+	buffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eDeviceLocal);
+	buffer->CopyBufferToBuffer(m_intermediateBuffer->GetBuffer(), buffer_size, m_commandPool, m_graphicsQueue);
+	return buffer;
+}
+
+std::shared_ptr<IDisposable> GLVK::VK::GraphicsEngine::CreateIndexBuffer(const std::vector<uint32_t>& indices)
+{
+	vk::DeviceSize buffer_size = sizeof(uint32_t) * indices.size();
+	m_intermediateBuffer.reset(new Buffer(m_logicalDevice, vk::BufferUsageFlagBits::eTransferSrc, buffer_size));
+	auto memory = m_intermediateBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible);
+	void* mapped = m_logicalDevice.mapMemory(memory, 0, buffer_size);
+	memcpy(mapped, indices.data(), buffer_size);
+	m_logicalDevice.unmapMemory(memory);
+
+	auto buffer = std::make_shared<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, buffer_size);
+	buffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eDeviceLocal);
+	buffer->CopyBufferToBuffer(m_intermediateBuffer->GetBuffer(), buffer_size, m_commandPool, m_graphicsQueue);
+	return buffer;
+}
+
+IDisposable* GLVK::VK::GraphicsEngine::LoadTexture(std::string_view fileName)
 {
 	int width = 0;
 	int height = 0;
@@ -130,7 +161,21 @@ void* GLVK::VK::GraphicsEngine::LoadTexture(std::string_view fileName)
 	texture->GenerateMipmaps(m_commandPool, m_graphicsQueue, mip_level_count);
 	texture->CreateImageView(m_format, vk::ImageAspectFlagBits::eColor, mip_level_count, vk::ImageViewType::e2D);
 	texture->CreateSampler(mip_level_count);
-	return m_resourceManager->AddResource(texture);
+	auto ptr = m_textures.emplace_back(m_resourceManager->AddResource(texture));
+	return ptr;
+}
+
+IDisposable* GLVK::VK::GraphicsEngine::LoadModel(std::string_view modelName)
+{
+	auto model = std::make_unique<MODEL>();
+	model->Load(modelName, this, false);
+	auto ptr = m_models.emplace_back(m_resourceManager->AddResource(model));
+	for (auto& mesh : ptr->Meshes)
+	{
+		mesh.VertexBuffer = std::dynamic_pointer_cast<Buffer>(CreateVertexBuffer(mesh.Vertices));
+		mesh.IndexBuffer = std::dynamic_pointer_cast<Buffer>(CreateIndexBuffer(mesh.Indices));
+	}
+	return ptr;
 }
 
 std::vector<const char*> GLVK::VK::GraphicsEngine::GetRequiredExtensions(bool debug) noexcept
@@ -367,6 +412,7 @@ void GLVK::VK::GraphicsEngine::CreateLogicalDevice()
 	auto features = vk::PhysicalDeviceFeatures();
 	features.samplerAnisotropy = VK_TRUE;
 	features.sampleRateShading = VK_TRUE;
+	features.shaderSampledImageArrayDynamicIndexing = VK_TRUE;
 
 	auto info = vk::DeviceCreateInfo();
 	info.enabledExtensionCount = static_cast<uint32_t>(m_enabledExtensions.size());
@@ -388,19 +434,16 @@ void GLVK::VK::GraphicsEngine::CreateLogicalDevice()
 
 void GLVK::VK::GraphicsEngine::CreateSwapchain()
 {
-	auto details = GetSwapchainDetails(m_physicalDevice, m_surface);
-	auto format = GetSurfaceFormat(details.Formats);
-	auto present_mode = GetPresentMode(details.PresentModes);
-	auto extent = GetExtent(details.SurfaceCapabilities, reinterpret_cast<GLFWwindow*>(m_handle));
+	auto present_mode = GetPresentMode(m_swapchainDetails.PresentModes);
 
 	uint32_t min_image_count = 0;
-	if (details.SurfaceCapabilities.maxImageCount > 0)
+	if (m_swapchainDetails.SurfaceCapabilities.maxImageCount > 0)
 	{
-		min_image_count = std::clamp<uint32_t>(details.SurfaceCapabilities.minImageCount + 1, details.SurfaceCapabilities.minImageCount, details.SurfaceCapabilities.maxImageCount);
+		min_image_count = std::clamp<uint32_t>(m_swapchainDetails.SurfaceCapabilities.minImageCount + 1, m_swapchainDetails.SurfaceCapabilities.minImageCount, m_swapchainDetails.SurfaceCapabilities.maxImageCount);
 	}
 	else
 	{
-		min_image_count = details.SurfaceCapabilities.minImageCount + 1;
+		min_image_count = m_swapchainDetails.SurfaceCapabilities.minImageCount + 1;
 	}
 
 	auto info = vk::SwapchainCreateInfoKHR();
@@ -408,12 +451,12 @@ void GLVK::VK::GraphicsEngine::CreateSwapchain()
 	info.clipped = VK_FALSE;
 	info.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
 	info.imageArrayLayers = 1;
-	info.imageColorSpace = format.colorSpace;
-	info.imageExtent = extent;
-	info.imageFormat = format.format;
+	info.imageColorSpace = m_surfaceFormat.colorSpace;
+	info.imageExtent = m_extent;
+	info.imageFormat = m_surfaceFormat.format;
 	info.imageUsage = vk::ImageUsageFlagBits::eColorAttachment;
 	info.minImageCount = min_image_count;
-	info.preTransform = details.SurfaceCapabilities.currentTransform;
+	info.preTransform = m_swapchainDetails.SurfaceCapabilities.currentTransform;
 	info.presentMode = present_mode;
 	info.surface = m_surface;
 	
@@ -436,8 +479,6 @@ void GLVK::VK::GraphicsEngine::CreateSwapchain()
 	}
 
 	m_swapchain = m_logicalDevice.createSwapchainKHR(info);
-	m_format = format.format;
-	m_extent = extent;
 
 	auto images = m_logicalDevice.getSwapchainImagesKHR(m_swapchain);
 	m_images.resize(images.size());
@@ -454,98 +495,9 @@ void GLVK::VK::GraphicsEngine::LoadShader()
 	m_fragmentShader = std::make_unique<Shader>(vk::ShaderStageFlagBits::eFragment, "GLVK/VK/Shaders/frag.spv", m_logicalDevice);
 }
 
-void GLVK::VK::GraphicsEngine::LoadDefaultCube()
-{
-	glm::vec3 test = { 0.05f,0.01f,0.01f };
-
-	m_cubeVertices =
-	{
-		// Front Face
-		{ { -0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } },
-		{ { -0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } },
-
-		// Top Face
-		{ { -0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ { -0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } },
-
-		// Back Face
-		{ {  0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } },
-		{ { -0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } },
-		{ { -0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } },
-
-		// Bottom Face
-		{ { -0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ { -0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
-
-		// Left Face
-		{ { -0.5f,  0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ { -0.5f, -0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ { -0.5f, -0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ { -0.5f,  0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-
-		// Right Face
-		{ {  0.5f,  0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f, -0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f, -0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f,  0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-	};
-
-	m_cubeIndices = {
-		0, 1, 2, 2, 3, 0,
-		4, 5, 6, 6, 7, 4,
-
-		8, 9, 10, 10, 11, 8,
-		12, 13, 14, 14, 15, 12,
-
-		16, 17, 18, 18, 19, 16,
-		20, 21, 22, 22, 23, 20
-	};
-}
-
-void GLVK::VK::GraphicsEngine::CreateBuffers()
-{
-	CreateVertexBuffers();
-	CreateIndexBuffers();
-}
-
-void GLVK::VK::GraphicsEngine::CreateVertexBuffers()
-{
-	static const vk::DeviceSize buffer_size = sizeof(Vertex) * m_cubeVertices.size();
-	m_intermediateBuffer.reset(new Buffer(m_logicalDevice, vk::BufferUsageFlagBits::eTransferSrc, buffer_size));
-	auto memory = m_intermediateBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible);
-	void* mapped = m_logicalDevice.mapMemory(memory, 0, buffer_size);
-	memcpy(mapped, m_cubeVertices.data(), buffer_size);
-	m_logicalDevice.unmapMemory(memory);
-
-	m_vertexBuffer = std::make_unique<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, buffer_size);
-	m_vertexBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eDeviceLocal);
-	m_vertexBuffer->CopyBufferToBuffer(m_intermediateBuffer->GetBuffer(), buffer_size, m_commandPool, m_graphicsQueue);
-}
-
-void GLVK::VK::GraphicsEngine::CreateIndexBuffers()
-{
-	vk::DeviceSize buffer_size = sizeof(uint32_t) * m_cubeIndices.size();
-	m_intermediateBuffer.reset(new Buffer(m_logicalDevice, vk::BufferUsageFlagBits::eTransferSrc, buffer_size));
-	auto memory = m_intermediateBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible);
-	void* mapped = m_logicalDevice.mapMemory(memory, 0, buffer_size);
-	memcpy(mapped, m_cubeIndices.data(), buffer_size);
-	m_logicalDevice.unmapMemory(memory);
-
-	m_indexBuffer = std::make_unique<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, buffer_size);
-	m_indexBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eDeviceLocal);
-	m_indexBuffer->CopyBufferToBuffer(m_intermediateBuffer->GetBuffer(), buffer_size, m_commandPool, m_graphicsQueue);
-}
-
 void GLVK::VK::GraphicsEngine::CreateDescriptorLayout()
 {
-	vk::DescriptorSetLayoutBinding bindings[2] = {};
+	vk::DescriptorSetLayoutBinding bindings[3] = {};
 	bindings[0].binding = 0;
 	bindings[0].descriptorCount = 1;
 	bindings[0].descriptorType = vk::DescriptorType::eUniformBuffer;
@@ -558,6 +510,12 @@ void GLVK::VK::GraphicsEngine::CreateDescriptorLayout()
 	bindings[1].pImmutableSamplers = nullptr;
 	bindings[1].stageFlags = vk::ShaderStageFlagBits::eFragment;
 
+	bindings[2].binding = 2;
+	bindings[2].descriptorCount = static_cast<uint32_t>(m_textures.size());
+	bindings[2].descriptorType = vk::DescriptorType::eCombinedImageSampler;
+	bindings[2].pImmutableSamplers = nullptr;
+	bindings[2].stageFlags = vk::ShaderStageFlagBits::eFragment;
+
 	auto info = vk::DescriptorSetLayoutCreateInfo();
 	info.bindingCount = static_cast<uint32_t>(_countof(bindings));
 	info.pBindings = bindings;
@@ -566,11 +524,13 @@ void GLVK::VK::GraphicsEngine::CreateDescriptorLayout()
 
 void GLVK::VK::GraphicsEngine::CreateDescriptorSets()
 {
-	vk::DescriptorPoolSize pool_sizes[2] = {};
+	vk::DescriptorPoolSize pool_sizes[3] = {};
 	pool_sizes[0].descriptorCount = static_cast<uint32_t>(m_images.size());
 	pool_sizes[0].type = vk::DescriptorType::eUniformBuffer;
 	pool_sizes[1].descriptorCount = static_cast<uint32_t>(m_images.size());
 	pool_sizes[1].type = vk::DescriptorType::eUniformBuffer;
+	pool_sizes[2].descriptorCount = static_cast<uint32_t>(m_images.size());
+	pool_sizes[2].type = vk::DescriptorType::eCombinedImageSampler;
 
 	assert(!m_images.empty());
 	auto pool_info = vk::DescriptorPoolCreateInfo();
@@ -586,6 +546,14 @@ void GLVK::VK::GraphicsEngine::CreateDescriptorSets()
 	allocate_info.pSetLayouts = set_layouts.data();
 	m_descriptorSets = m_logicalDevice.allocateDescriptorSets(allocate_info);
 
+	auto images_infos = std::vector<vk::DescriptorImageInfo>(m_textures.size());
+	for (auto i = 0; i < m_textures.size(); ++i)
+	{
+		images_infos[i].imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+		images_infos[i].imageView = m_textures[i]->GetImageView();
+		images_infos[i].sampler = m_textures[i]->GetSampler();
+	}
+
 	for (auto i = 0; i < m_descriptorSets.size(); ++i)
 	{
 		auto mvp_buffer_info = vk::DescriptorBufferInfo();
@@ -598,7 +566,8 @@ void GLVK::VK::GraphicsEngine::CreateDescriptorSets()
 		directional_light_buffer_info.offset = 0;
 		directional_light_buffer_info.range = sizeof(DirectionalLight);
 
-		auto write_descriptors = std::vector<vk::WriteDescriptorSet>(2);
+		auto write_descriptor_count = 2 + (m_textures.empty() ? 0 : 1);
+		auto write_descriptors = std::vector<vk::WriteDescriptorSet>(write_descriptor_count);
 		write_descriptors[0].descriptorCount = 1;
 		write_descriptors[0].descriptorType = vk::DescriptorType::eUniformBuffer;
 		write_descriptors[0].dstArrayElement = 0;
@@ -616,6 +585,18 @@ void GLVK::VK::GraphicsEngine::CreateDescriptorSets()
 		write_descriptors[1].pBufferInfo = &directional_light_buffer_info;
 		write_descriptors[1].pImageInfo = nullptr;
 		write_descriptors[1].pTexelBufferView = nullptr;
+
+		if (!m_textures.empty())
+		{
+			write_descriptors[2].descriptorCount = static_cast<uint32_t>(m_textures.size()) <= 0 ? 1 : static_cast<uint32_t>(m_textures.size());
+			write_descriptors[2].descriptorType = vk::DescriptorType::eCombinedImageSampler;
+			write_descriptors[2].dstArrayElement = 0;
+			write_descriptors[2].dstBinding = 2;
+			write_descriptors[2].dstSet = m_descriptorSets[i];
+			write_descriptors[2].pBufferInfo = nullptr;
+			write_descriptors[2].pImageInfo = images_infos.data();
+			write_descriptors[2].pTexelBufferView = nullptr;
+		}
 
 		m_logicalDevice.updateDescriptorSets(write_descriptors, {});
 	}
@@ -822,30 +803,103 @@ void GLVK::VK::GraphicsEngine::BeginRenderPass()
 		m_commandBuffers[i].setViewport(0, { vk::Viewport(0.0f, 0.0f, static_cast<float>(m_extent.width), static_cast<float>(m_extent.height), 0.0f, 1.0f) });
         m_commandBuffers[i].setScissor(0, { scissor });
         m_commandBuffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_pipeline->GetPipelineLayout(), 0, { m_descriptorSets[i] }, nullptr);
-        m_commandBuffers[i].bindVertexBuffers(0, m_vertexBuffer->GetBuffer(), { 0 });
-        m_commandBuffers[i].bindIndexBuffer(m_indexBuffer->GetBuffer(), 0, vk::IndexType::eUint32);
         m_commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, m_pipeline->GetPipeline(BlendMode::None));
-        m_commandBuffers[i].drawIndexed(static_cast<uint32_t>(m_cubeIndices.size()), 1, 0, 0, 0);
+
+		for (const auto& mesh : m_meshes)
+		{
+			m_commandBuffers[i].bindVertexBuffers(0, mesh->VertexBuffer->GetBuffer(), { 0 });
+			m_commandBuffers[i].bindIndexBuffer(mesh->IndexBuffer->GetBuffer(), 0, vk::IndexType::eUint32);
+			m_commandBuffers[i].drawIndexed(static_cast<uint32_t>(mesh->Indices.size()), 1, 0, 0, 0);
+		}
+
+		for (const auto& model : m_models)
+		{
+			for (const auto& mesh : model->Meshes)
+			{
+				m_commandBuffers[i].bindVertexBuffers(0, mesh.VertexBuffer->GetBuffer(), { 0 });
+				m_commandBuffers[i].bindIndexBuffer(mesh.IndexBuffer->GetBuffer(), 0, vk::IndexType::eUint32);
+				m_commandBuffers[i].drawIndexed(static_cast<uint32_t>(mesh.Indices.size()), 1, 0, 0, 0);
+			}
+		}
 
         m_commandBuffers[i].endRenderPass();
         m_commandBuffers[i].end();
     }
 }
 
-void GLVK::VK::GraphicsEngine::CreateCube()
+void* GLVK::VK::GraphicsEngine::CreateCube()
 {
+	static const std::vector<Vertex> cube_vertices =
+	{
+		// Front Face
+		{ { -0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } },
+		{ { -0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } },
+		{ {  0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } },
+		{ {  0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } },
+
+		// Top Face
+		{ { -0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ { -0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ {  0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ {  0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } },
+
+		// Back Face
+		{ {  0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } },
+		{ {  0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } },
+		{ { -0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } },
+		{ { -0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } },
+
+		// Bottom Face
+		{ { -0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ { -0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ {  0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ {  0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
+
+		// Left Face
+		{ { -0.5f,  0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ { -0.5f, -0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ { -0.5f, -0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ { -0.5f,  0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
+
+		// Right Face
+		{ {  0.5f,  0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ {  0.5f, -0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ {  0.5f, -0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
+		{ {  0.5f,  0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
+	};
+
+	static const std::vector<uint32_t> cube_indices = {
+		0, 1, 2, 2, 3, 0,
+		4, 5, 6, 6, 7, 4,
+
+		8, 9, 10, 10, 11, 8,
+		12, 13, 14, 14, 15, 12,
+
+		16, 17, 18, 18, 19, 16,
+		20, 21, 22, 22, 23, 20
+	};
+
+	auto& mesh = m_meshes.emplace_back(std::make_unique<MESH>());
+	mesh->Vertices = cube_vertices;
+	mesh->Indices = cube_indices;
+	mesh->VertexBuffer = std::dynamic_pointer_cast<Buffer>(CreateVertexBuffer(mesh->Vertices));
+	mesh->IndexBuffer = std::dynamic_pointer_cast<Buffer>(CreateIndexBuffer(mesh->Indices));
+	return mesh.get();
 }
 
-void GLVK::VK::GraphicsEngine::CreateSphere()
+void* GLVK::VK::GraphicsEngine::CreateSphere()
 {
+	return nullptr;
 }
 
-void GLVK::VK::GraphicsEngine::CreateCylinder()
+void* GLVK::VK::GraphicsEngine::CreateCylinder()
 {
+	return nullptr;
 }
 
-void GLVK::VK::GraphicsEngine::CreateCapsule()
+void* GLVK::VK::GraphicsEngine::CreateCapsule()
 {
+	return nullptr;
 }
 
 void GLVK::VK::GraphicsEngine::CreateSynchronizationObjects()

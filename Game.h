@@ -16,6 +16,7 @@ public:
 	~Game();
 
 	bool Initialize();
+	void LoadContent();
 	bool IsInitialized() const noexcept;
 	void Run();
 	

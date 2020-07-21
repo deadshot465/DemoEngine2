@@ -12,6 +12,8 @@ int main()
 	{
 		if (game.Initialize())
 		{
+			game.LoadContent();
+
 			while (game.IsInitialized())
 				game.Run();
 		}

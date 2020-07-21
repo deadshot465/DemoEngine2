@@ -91,6 +91,6 @@ inline std::string GetRandomString(size_t length)
 	static std::string random_characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
 	auto generated = std::string();
-	std::sample(random_characters.cbegin(), random_characters.cend(), std::back_inserter(random_characters), length, DEFAULT_ENGINE);
+	std::sample(random_characters.cbegin(), random_characters.cend(), std::back_inserter(generated), length, DEFAULT_ENGINE);
 	return generated;
 }

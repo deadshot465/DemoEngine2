@@ -16,7 +16,7 @@ GLVK::VK::Buffer::Buffer(const vk::Device& device, const vk::BufferUsageFlags& b
 
 GLVK::VK::Buffer::~Buffer()
 {
-	m_logicalDevice.destroyBuffer(m_buffer);
+	if (!m_isDisposed) Dispose();
 }
 
 void GLVK::VK::Buffer::CopyBufferToBuffer(const vk::Buffer& srcBuffer, vk::DeviceSize size, const vk::CommandPool& commandPool, const vk::Queue& graphicsQueue)
@@ -56,4 +56,10 @@ const vk::DeviceMemory &GLVK::VK::Buffer::AllocateMemory(const vk::PhysicalDevic
 	MapDeviceMemory(requirements, physicalDevice, memoryProperties);
 	m_logicalDevice.bindBufferMemory(m_buffer, m_deviceMemory, 0);
 	return m_deviceMemory;
+}
+
+void GLVK::VK::Buffer::Dispose()
+{
+	m_logicalDevice.destroyBuffer(m_buffer);
+	m_isDisposed = true;
 }

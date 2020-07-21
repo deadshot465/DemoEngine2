@@ -6,6 +6,8 @@
 #include <vector>
 #include <vulkan/vulkan.hpp>
 #include "../../Interfaces/IGraphics.h"
+#include "../../Structures/Model.h"
+#include "../../Structures/Vertex.h"
 #include "BufferVK.h"
 #include "ImageVK.h"
 #include "PipelineVK.h"
@@ -16,6 +18,9 @@ namespace GLVK
 {
 	namespace VK
 	{
+		using MESH = Mesh<Image, Buffer>;
+		using MODEL = Model<Image, Buffer>;
+
 		class Buffer;
 		class Image;
 		class Shader;
@@ -28,17 +33,21 @@ namespace GLVK
 			GraphicsEngine(GLFWwindow* window, int width, int height, IResourceManager* resourceManager);
 			~GraphicsEngine();
 
+			virtual void Initialize() override;
 			virtual void Update(float deltaTime) override;
 			virtual void Render() override;
-			virtual void* LoadTexture(std::string_view fileName) override;
-			virtual void CreateCube() override;
-			virtual void CreateSphere() override;
-			virtual void CreateCylinder() override;
-			virtual void CreateCapsule() override;
+			virtual std::shared_ptr<IDisposable> CreateVertexBuffer(const std::vector<Vertex>& vertices) override;
+			virtual std::shared_ptr<IDisposable> CreateIndexBuffer(const std::vector<uint32_t>& indices) override;
+			virtual IDisposable* LoadTexture(std::string_view fileName) override;
+			virtual IDisposable* LoadModel(std::string_view modelName) override;
+			virtual void* CreateCube() override;
+			virtual void* CreateSphere() override;
+			virtual void* CreateCylinder() override;
+			virtual void* CreateCapsule() override;
 
 		private:
-			std::vector<Vertex> m_cubeVertices;
-			std::vector<uint32_t> m_cubeIndices;
+			//std::vector<Vertex> m_cubeVertices;
+			//std::vector<uint32_t> m_cubeIndices;
 
 			static std::vector<const char*> GetRequiredExtensions(bool debug) noexcept;
 			static bool CheckLayerSupport() noexcept;
@@ -54,7 +63,6 @@ namespace GLVK
 			static vk::Format GetDepthFormat(const vk::PhysicalDevice& physicalDevice, const vk::ImageTiling& imageTiling) noexcept;
 			static vk::SampleCountFlagBits GetMsaaSampleCounts(const vk::PhysicalDevice& physicalDevice);
 
-			void Initialize();
 			void Dispose();
 			void CreateInstance();
 			void SetupDebug();
@@ -63,10 +71,6 @@ namespace GLVK
 			void CreateLogicalDevice();
 			void CreateSwapchain();
 			void LoadShader();
-			void LoadDefaultCube();
-			void CreateBuffers();
-			void CreateVertexBuffers();
-			void CreateIndexBuffers();
 			void CreateDescriptorLayout();
 			void CreateDescriptorSets();
 			void CreateDepthImage();
@@ -95,8 +99,11 @@ namespace GLVK
 			vk::SurfaceKHR m_surface = nullptr;
 			QueueIndices m_queueIndices = {};
 			vk::Device m_logicalDevice = nullptr;
-			vk::SwapchainKHR m_swapchain = nullptr;
+			SwapchainDetails m_swapchainDetails = {};
+			vk::SurfaceFormatKHR m_surfaceFormat = {};
 			vk::Format m_format = {};
+			vk::SwapchainKHR m_swapchain = nullptr;
+			
 			vk::Extent2D m_extent = {};
 			vk::Queue m_graphicsQueue = nullptr;
 			vk::Queue m_presentQueue = nullptr;
@@ -113,14 +120,18 @@ namespace GLVK
 			std::vector<std::unique_ptr<Image>> m_images;
 			std::unique_ptr<Shader> m_vertexShader = nullptr;
 			std::unique_ptr<Shader> m_fragmentShader = nullptr;
-			std::unique_ptr<Buffer> m_vertexBuffer = nullptr;
+			std::vector<std::unique_ptr<Buffer>> m_vertexBuffers;
 			std::unique_ptr<Buffer> m_intermediateBuffer = nullptr;
-			std::unique_ptr<Buffer> m_indexBuffer = nullptr;
+			std::vector<std::unique_ptr<Buffer>> m_indexBuffers;
 			std::vector<std::unique_ptr<Buffer>> m_mvpBuffers;
 			std::vector<std::unique_ptr<Buffer>> m_directionalLightBuffers;
 			std::unique_ptr<Image> m_depthImage = nullptr;
 			std::unique_ptr<Image> m_msaaImage = nullptr;
 			std::unique_ptr<Pipeline> m_pipeline = nullptr;
+			
+			std::vector<Image*> m_textures;
+			std::vector<MODEL*> m_models;
+			std::vector<std::unique_ptr<MESH>> m_meshes;
 
 			MVP m_mvp = {};
 			DirectionalLight m_directionalLight = {};
