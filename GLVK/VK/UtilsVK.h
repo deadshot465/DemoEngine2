@@ -28,6 +28,27 @@ namespace GLVK
 		    std::vector<vk::PresentModeKHR> PresentModes;
         };
 
+		struct MVP
+		{
+			glm::mat4 Model;
+			glm::mat4 View;
+			glm::mat4 Projection;
+		};
+
+		struct DirectionalLight
+		{
+			glm::vec4 Diffuse;
+			glm::vec3 LightDirection;
+			float AmbientIntensity;
+			float SpecularIntensity;
+		};
+		
+		struct PushConstant
+		{
+			uint32_t TextureIndex;
+			glm::vec4 ObjectColor;
+		};
+
 		inline std::vector<vk::VertexInputAttributeDescription> GetVertexInputAttributeDescription(uint32_t binding) noexcept
 		{
 			auto descs = std::vector<vk::VertexInputAttributeDescription>(3);
@@ -62,21 +83,6 @@ namespace GLVK
 
 			return desc;
 		}
-
-		struct MVP
-		{
-			glm::mat4 Model;
-			glm::mat4 View;
-			glm::mat4 Projection;
-		};
-
-		struct DirectionalLight
-		{
-			glm::vec4 Diffuse;
-			glm::vec3 LightDirection;
-			float AmbientIntensity;
-			float SpecularIntensity;
-		};
 
 		inline void ThrowIfFailed(VkResult result, std::string_view message)
 		{
@@ -140,6 +146,20 @@ namespace GLVK
 			graphicsQueue.submit(submit_info, nullptr);
 			graphicsQueue.waitIdle();
 			device.freeCommandBuffers(commandPool, commandBuffer);
+		}
+
+		inline void* AllocateAlignedMemory(size_t size, size_t alignment)
+		{
+#ifdef _WIN32
+			return _aligned_malloc(size, alignment);
+#endif
+		}
+
+		inline void ReleaseAlignedMemory(void* alignedMemory)
+		{
+#ifdef _WIN32
+			_aligned_free(alignedMemory);
+#endif
 		}
 	}
 }

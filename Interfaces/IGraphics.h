@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include <string_view>
+#include <tuple>
 #include <vector>
 #include "IResourceManager.h"
 #include "IDisposable.h"
@@ -22,8 +23,8 @@ public:
 
 	virtual std::shared_ptr<IDisposable> CreateVertexBuffer(const std::vector<Vertex>& vertices) = 0;
 	virtual std::shared_ptr<IDisposable> CreateIndexBuffer(const std::vector<uint32_t>& indices) = 0;
-	virtual IDisposable* LoadTexture(std::string_view fileName) = 0;
-	virtual IDisposable* LoadModel(std::string_view modelName) = 0;
+	virtual std::tuple<IDisposable*, unsigned int> LoadTexture(std::string_view fileName) = 0;
+	virtual std::tuple<IDisposable*, unsigned int> LoadModel(std::string_view modelName) = 0;
 	virtual void* CreateCube() = 0;
 	virtual void* CreateSphere() = 0;
 	virtual void* CreateCylinder() = 0;

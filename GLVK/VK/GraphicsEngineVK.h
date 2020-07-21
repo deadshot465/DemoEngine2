@@ -38,8 +38,8 @@ namespace GLVK
 			virtual void Render() override;
 			virtual std::shared_ptr<IDisposable> CreateVertexBuffer(const std::vector<Vertex>& vertices) override;
 			virtual std::shared_ptr<IDisposable> CreateIndexBuffer(const std::vector<uint32_t>& indices) override;
-			virtual IDisposable* LoadTexture(std::string_view fileName) override;
-			virtual IDisposable* LoadModel(std::string_view modelName) override;
+			virtual std::tuple<IDisposable*, unsigned int> LoadTexture(std::string_view fileName) override;
+			virtual std::tuple<IDisposable*, unsigned int> LoadModel(std::string_view modelName) override;
 			virtual void* CreateCube() override;
 			virtual void* CreateSphere() override;
 			virtual void* CreateCylinder() override;
@@ -120,9 +120,7 @@ namespace GLVK
 			std::vector<std::unique_ptr<Image>> m_images;
 			std::unique_ptr<Shader> m_vertexShader = nullptr;
 			std::unique_ptr<Shader> m_fragmentShader = nullptr;
-			std::vector<std::unique_ptr<Buffer>> m_vertexBuffers;
 			std::unique_ptr<Buffer> m_intermediateBuffer = nullptr;
-			std::vector<std::unique_ptr<Buffer>> m_indexBuffers;
 			std::vector<std::unique_ptr<Buffer>> m_mvpBuffers;
 			std::vector<std::unique_ptr<Buffer>> m_directionalLightBuffers;
 			std::unique_ptr<Image> m_depthImage = nullptr;
@@ -135,6 +133,8 @@ namespace GLVK
 
 			MVP m_mvp = {};
 			DirectionalLight m_directionalLight = {};
+			PushConstant m_pushConstant = {};
+			
 		};
 	}
 }

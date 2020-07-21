@@ -6,6 +6,12 @@ layout (location = 3) in vec4 fragPos;
 
 layout (location = 0) out vec4 fragColor;
 
+layout (push_constant) uniform PushConstant
+{
+    uint texture_index;
+    vec4 object_color;
+} pco;
+
 layout (binding = 1) uniform DirectionalLight
 {
     vec4 diffuse;
@@ -13,9 +19,16 @@ layout (binding = 1) uniform DirectionalLight
     float ambient_intensity;
     float specular_intensity;
 } direction_light;
+layout (binding = 2) uniform sampler2D TexSampler[80];
 
 void main()
 {
+    // Texture
+    vec4 tex_color = texture(TexSampler[pco.texture_index], inTexCoord);
+    if (tex_color.a < 0.1) {
+        discard;
+    }
+
     // Ambient
     vec4 ambient = direction_light.diffuse * direction_light.ambient_intensity;
 
@@ -25,5 +38,6 @@ void main()
     float intensity = max(dot(normal, light_direction), 0.0);
     vec4 diffuse = direction_light.diffuse * intensity;
 
-    fragColor = (ambient + diffuse) * vec4(1.0, 1.0, 0.0, 1.0);
+    vec4 result = (ambient + diffuse) * pco.object_color;
+    fragColor = result * tex_color;
 }

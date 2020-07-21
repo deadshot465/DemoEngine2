@@ -188,13 +188,13 @@ void GLVK::VK::Pipeline::CreateGraphicPipelines(const vk::DescriptorSetLayout& d
 
 	auto push_constant_range = vk::PushConstantRange();
 	push_constant_range.offset = 0;
-	push_constant_range.size = 0;
-	push_constant_range.stageFlags = vk::ShaderStageFlagBits::eVertex;
+	push_constant_range.size = static_cast<uint32_t>(sizeof(PushConstant));
+	push_constant_range.stageFlags = vk::ShaderStageFlagBits::eFragment;
 
 	auto layout_info = vk::PipelineLayoutCreateInfo();
-	layout_info.pPushConstantRanges = nullptr;
+	layout_info.pPushConstantRanges = &push_constant_range;
 	layout_info.pSetLayouts = &descriptorSetLayout;
-	layout_info.pushConstantRangeCount = 0;
+	layout_info.pushConstantRangeCount = 1;
 	layout_info.setLayoutCount = 1;
 	m_pipelineLayout = m_logicalDevice.createPipelineLayout(layout_info);
 

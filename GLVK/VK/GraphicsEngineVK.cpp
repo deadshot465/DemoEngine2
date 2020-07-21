@@ -109,7 +109,7 @@ void GLVK::VK::GraphicsEngine::Render()
 
 std::shared_ptr<IDisposable> GLVK::VK::GraphicsEngine::CreateVertexBuffer(const std::vector<Vertex>& vertices)
 {
-	static const vk::DeviceSize buffer_size = sizeof(Vertex) * vertices.size();
+	vk::DeviceSize buffer_size = sizeof(Vertex) * vertices.size();
 	m_intermediateBuffer.reset(new Buffer(m_logicalDevice, vk::BufferUsageFlagBits::eTransferSrc, buffer_size));
 	auto memory = m_intermediateBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible);
 	void* mapped = m_logicalDevice.mapMemory(memory, 0, buffer_size);
@@ -137,7 +137,7 @@ std::shared_ptr<IDisposable> GLVK::VK::GraphicsEngine::CreateIndexBuffer(const s
 	return buffer;
 }
 
-IDisposable* GLVK::VK::GraphicsEngine::LoadTexture(std::string_view fileName)
+std::tuple<IDisposable*, unsigned int> GLVK::VK::GraphicsEngine::LoadTexture(std::string_view fileName)
 {
 	int width = 0;
 	int height = 0;
@@ -162,20 +162,22 @@ IDisposable* GLVK::VK::GraphicsEngine::LoadTexture(std::string_view fileName)
 	texture->CreateImageView(m_format, vk::ImageAspectFlagBits::eColor, mip_level_count, vk::ImageViewType::e2D);
 	texture->CreateSampler(mip_level_count);
 	auto ptr = m_textures.emplace_back(m_resourceManager->AddResource(texture));
-	return ptr;
+	auto index = m_textures.empty() ? 0 : m_textures.size() - 1;
+	return std::make_tuple(ptr, static_cast<uint32_t>(index));
 }
 
-IDisposable* GLVK::VK::GraphicsEngine::LoadModel(std::string_view modelName)
+std::tuple<IDisposable*, unsigned int> GLVK::VK::GraphicsEngine::LoadModel(std::string_view modelName)
 {
 	auto model = std::make_unique<MODEL>();
-	model->Load(modelName, this, false);
+	model->Load(modelName, this);
 	auto ptr = m_models.emplace_back(m_resourceManager->AddResource(model));
 	for (auto& mesh : ptr->Meshes)
 	{
 		mesh.VertexBuffer = std::dynamic_pointer_cast<Buffer>(CreateVertexBuffer(mesh.Vertices));
 		mesh.IndexBuffer = std::dynamic_pointer_cast<Buffer>(CreateIndexBuffer(mesh.Indices));
 	}
-	return ptr;
+	auto index = m_models.empty() ? 0 : m_models.size() - 1;
+	return std::make_tuple(ptr, static_cast<uint32_t>(index));
 }
 
 std::vector<const char*> GLVK::VK::GraphicsEngine::GetRequiredExtensions(bool debug) noexcept
@@ -224,11 +226,20 @@ bool GLVK::VK::GraphicsEngine::IsDeviceSuitable(const vk::PhysicalDevice& device
 
 	auto features = device.getFeatures();
 	auto feature_supports = features.samplerAnisotropy && features.sampleRateShading && features.shaderSampledImageArrayDynamicIndexing;
+	
+	auto indexing_feature = vk::PhysicalDeviceDescriptorIndexingFeatures();
+	auto feature2 = vk::PhysicalDeviceFeatures2();
+	feature2.pNext = &indexing_feature;
+	device.getFeatures2(&feature2);
 
 	auto swapchain_details = GetSwapchainDetails(device, surface);
 	auto is_swapchain_adequate = swapchain_details.Formats.size() > 0 && swapchain_details.PresentModes.size() > 0;
 
-	return feature_supports && CheckExtensionSupport(device) && is_swapchain_adequate;
+	return feature_supports &&
+		CheckExtensionSupport(device) &&
+		is_swapchain_adequate &&
+		indexing_feature.descriptorBindingPartiallyBound &&
+		indexing_feature.runtimeDescriptorArray;
 }
 
 GLVK::VK::QueueIndices GLVK::VK::GraphicsEngine::GetQueueIndices(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface) noexcept
@@ -414,12 +425,17 @@ void GLVK::VK::GraphicsEngine::CreateLogicalDevice()
 	features.sampleRateShading = VK_TRUE;
 	features.shaderSampledImageArrayDynamicIndexing = VK_TRUE;
 
+	auto indexing_features = vk::PhysicalDeviceDescriptorIndexingFeatures();
+	indexing_features.descriptorBindingPartiallyBound = VK_TRUE;
+	indexing_features.runtimeDescriptorArray = VK_TRUE;
+
 	auto info = vk::DeviceCreateInfo();
 	info.enabledExtensionCount = static_cast<uint32_t>(m_enabledExtensions.size());
 	info.pEnabledFeatures = &features;
 	info.ppEnabledExtensionNames = m_enabledExtensions.data();
 	info.pQueueCreateInfos = queue_create_infos.data();
 	info.queueCreateInfoCount = static_cast<uint32_t>(queue_create_infos.size());
+	info.pNext = &indexing_features;
 
 	if (m_debug)
 	{
@@ -655,6 +671,8 @@ void GLVK::VK::GraphicsEngine::CreateUniformBuffers()
 		memcpy(mapped, &m_directionalLight, directional_light_size);
 		m_logicalDevice.unmapMemory(directional_light_memory);
 	}
+
+	m_pushConstant.ObjectColor = glm::vec4(0.0f, 1.0f, 1.0f, 1.0f);
 }
 
 GLVK::VK::SwapchainDetails GLVK::VK::GraphicsEngine::GetSwapchainDetails(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface) {
@@ -779,7 +797,7 @@ void GLVK::VK::GraphicsEngine::CreateCommandBuffers()
 
 void GLVK::VK::GraphicsEngine::BeginRenderPass()
 {
-    static const auto clear_color = vk::ClearColorValue(std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 1.0f });
+    static const auto clear_color = vk::ClearColorValue(std::array<float, 4>{ 1.0f, 1.0f, 1.0f, 1.0f });
     static const auto clear_depth = vk::ClearDepthStencilValue(1.0f, 0);
     static const vk::ClearValue clear_values[] = { vk::ClearValue(clear_color), vk::ClearValue(clear_depth) };
     auto renderpass_info = vk::RenderPassBeginInfo();
@@ -807,6 +825,12 @@ void GLVK::VK::GraphicsEngine::BeginRenderPass()
 
 		for (const auto& mesh : m_meshes)
 		{
+			if (!mesh->Textures.empty())
+			{
+				m_pushConstant.TextureIndex = mesh->TextureIndices[0];
+				m_commandBuffers[i].pushConstants<PushConstant>(m_pipeline->GetPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, m_pushConstant);
+			}
+
 			m_commandBuffers[i].bindVertexBuffers(0, mesh->VertexBuffer->GetBuffer(), { 0 });
 			m_commandBuffers[i].bindIndexBuffer(mesh->IndexBuffer->GetBuffer(), 0, vk::IndexType::eUint32);
 			m_commandBuffers[i].drawIndexed(static_cast<uint32_t>(mesh->Indices.size()), 1, 0, 0, 0);
@@ -816,6 +840,12 @@ void GLVK::VK::GraphicsEngine::BeginRenderPass()
 		{
 			for (const auto& mesh : model->Meshes)
 			{
+				if (!mesh.Textures.empty())
+				{
+					m_pushConstant.TextureIndex = mesh.TextureIndices[0];
+					m_commandBuffers[i].pushConstants<PushConstant>(m_pipeline->GetPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, m_pushConstant);
+				}
+
 				m_commandBuffers[i].bindVertexBuffers(0, mesh.VertexBuffer->GetBuffer(), { 0 });
 				m_commandBuffers[i].bindIndexBuffer(mesh.IndexBuffer->GetBuffer(), 0, vk::IndexType::eUint32);
 				m_commandBuffers[i].drawIndexed(static_cast<uint32_t>(mesh.Indices.size()), 1, 0, 0, 0);

@@ -43,12 +43,18 @@
     <Filter Include="ソース ファイル\GLVK\VK">
       <UniqueIdentifier>{0cc303d9-bee7-45e6-8e96-9b0d484afc18}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ヘッダー ファイル\Interfaces">
+      <UniqueIdentifier>{81cf9d49-c8eb-448e-a075-c096a166c9f1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\Structures">
+      <UniqueIdentifier>{81032ea8-3b4c-48eb-8a67-9a49ae141689}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソース ファイル\Interfaces">
+      <UniqueIdentifier>{a526a6c0-6121-4a38-9cb7-af7b4e4e99d5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DemoEngine.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="Interfaces\IWindow.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="GLVK\VK\BufferVK.cpp">
@@ -90,11 +96,11 @@
     <ClCompile Include="Game.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="Interfaces\IWindow.cpp">
+      <Filter>ソース ファイル\Interfaces</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Interfaces\IWindow.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="UtilsCommon.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -152,20 +158,26 @@
     <ClInclude Include="Game.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="Interfaces\IDisposable.h">
+      <Filter>ヘッダー ファイル\Interfaces</Filter>
+    </ClInclude>
     <ClInclude Include="Interfaces\IGraphics.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>ヘッダー ファイル\Interfaces</Filter>
     </ClInclude>
     <ClInclude Include="Interfaces\IResourceManager.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>ヘッダー ファイル\Interfaces</Filter>
     </ClInclude>
-    <ClInclude Include="Interfaces\IDisposable.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="Interfaces\IWindow.h">
+      <Filter>ヘッダー ファイル\Interfaces</Filter>
     </ClInclude>
     <ClInclude Include="Structures\Model.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>ヘッダー ファイル\Structures</Filter>
     </ClInclude>
     <ClInclude Include="Structures\Vertex.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>ヘッダー ファイル\Structures</Filter>
+    </ClInclude>
+    <ClInclude Include="Structures\Matrix.h">
+      <Filter>ヘッダー ファイル\Structures</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

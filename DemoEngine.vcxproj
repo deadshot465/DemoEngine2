@@ -192,6 +192,7 @@
     <ClInclude Include="Interfaces\IResourceManager.h" />
     <ClInclude Include="Interfaces\ISwapChainDX.h" />
     <ClInclude Include="Interfaces\IWindow.h" />
+    <ClInclude Include="Structures\Matrix.h" />
     <ClInclude Include="Structures\Model.h" />
     <ClInclude Include="Structures\Vertex.h" />
     <ClInclude Include="UtilsCommon.h" />

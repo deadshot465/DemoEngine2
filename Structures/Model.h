@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <utility>
 #include <vector>
 #include "../Interfaces/IDisposable.h"
@@ -20,14 +21,19 @@ struct Mesh
 public:
 	Mesh() = default;
 
-	Mesh(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, std::vector<Texture*>& textures)
-		: Vertices(vertices), Indices(indices), Textures(textures)
+	Mesh(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, std::vector<Texture*>& textures, std::vector<uint32_t>& textureIndices, std::shared_ptr<Buffer>& vertexBuffer = nullptr, std::shared_ptr<Buffer>& indexBuffer = nullptr)
+		: Vertices(vertices),
+		Indices(indices),
+		Textures(textures),
+		TextureIndices(textureIndices),
+		VertexBuffer(vertexBuffer),
+		IndexBuffer(indexBuffer)
 	{
 
 	}
 
 	Mesh(Mesh&& mesh) noexcept
-		: Vertices(std::move(mesh.Vertices)), Indices(std::move(mesh.Indices)), Textures(std::move(mesh.Textures))
+		: Vertices(std::move(mesh.Vertices)), Indices(std::move(mesh.Indices)), Textures(std::move(mesh.Textures)), TextureIndices(std::move(mesh.TextureIndices)), VertexBuffer(std::move(mesh.VertexBuffer)), IndexBuffer(std::move(mesh.IndexBuffer))
 	{
 	}
 
@@ -37,7 +43,10 @@ public:
 
 		std::swap(Vertices, mesh.Vertices);
 		std::swap(Indices, mesh.Indices);
-		std::swap(Texture, mesh.Textures);
+		std::swap(Textures, mesh.Textures);
+		std::swap(TextureIndices, mesh.TextureIndices);
+		std::swap(VertexBuffer, mesh.VertexBuffer);
+		std::swap(IndexBuffer, mesh.IndexBuffer);
 
 		return *this;
 	}
@@ -54,6 +63,7 @@ public:
 	std::vector<Vertex> Vertices;
 	std::vector<uint32_t> Indices;
 	std::vector<Texture*> Textures;
+	std::vector<unsigned int> TextureIndices;
 	std::shared_ptr<Buffer> VertexBuffer;
 	std::shared_ptr<Buffer> IndexBuffer;
 };
@@ -115,6 +125,8 @@ private:
 		std::vector<Vertex> vertices;
 		std::vector<uint32_t> indices;
 		std::vector<Texture*> textures;
+		std::vector<unsigned int> texture_indices;
+		Mesh<Texture, Buffer> _mesh{};
 
 		for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
 		{
@@ -160,7 +172,9 @@ private:
 				auto str = aiString();
 				material->GetTexture(aiTextureType::aiTextureType_DIFFUSE, i, &str);
 				auto file_name = directory + str.C_Str();
-				textures.emplace_back(reinterpret_cast<Texture*>(graphics->LoadTexture(file_name)));
+				auto texture = graphics->LoadTexture(file_name);
+				textures.emplace_back(reinterpret_cast<Texture*>(std::get<0>(texture)));
+				texture_indices.emplace_back(std::get<1>(texture));
 			}
 
 			for (unsigned int i = 0; i < material->GetTextureCount(aiTextureType::aiTextureType_SPECULAR); ++i)
@@ -168,11 +182,16 @@ private:
 				auto str = aiString();
 				material->GetTexture(aiTextureType::aiTextureType_SPECULAR, i, &str);
 				auto file_name = directory + str.C_Str();
-				textures.emplace_back(reinterpret_cast<Texture*>(graphics->LoadTexture(file_name)));
+				auto texture = graphics->LoadTexture(file_name);
+				textures.emplace_back(reinterpret_cast<Texture*>(std::get<0>(texture)));
+				texture_indices.emplace_back(std::get<1>(texture));
 			}
 		}
 
-		Mesh<Texture, Buffer> _mesh{ vertices, indices, textures };
+		_mesh.Vertices = vertices;
+		_mesh.Indices = indices;
+		_mesh.Textures = textures;
+		_mesh.TextureIndices = texture_indices;
 		return _mesh;
 	}
 
