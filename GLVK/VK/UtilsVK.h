@@ -28,13 +28,6 @@ namespace GLVK
 		    std::vector<vk::PresentModeKHR> PresentModes;
         };
 
-		struct MVP
-		{
-			glm::mat4 Model;
-			glm::mat4 View;
-			glm::mat4 Projection;
-		};
-
 		struct DirectionalLight
 		{
 			glm::vec4 Diffuse;

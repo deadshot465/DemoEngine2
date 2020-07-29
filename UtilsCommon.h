@@ -9,15 +9,23 @@
 #include <string_view>
 #include <type_traits>
 #include <vector>
+#include "Structures/Matrix.h"
 
 enum class BlendMode
 {
 	None, Alpha, Add, Subtract, Replace, Multiply, Lighten, Darken, Screen, End
 };
 
+struct MVP
+{
+	Matrix4x4 View;
+	Matrix4x4 Projection;
+};
+
 struct DynamicBufferObject
 {
-
+	std::vector<Matrix4x4> Models;
+	Matrix4x4* Buffer;
 };
 
 template <typename T = char>

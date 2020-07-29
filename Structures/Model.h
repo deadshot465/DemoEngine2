@@ -2,6 +2,7 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+#include <glm/gtc/matrix_transform.hpp>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -12,6 +13,7 @@
 #include "../Interfaces/IDisposable.h"
 #include "../Interfaces/IGraphics.h"
 #include "../Interfaces/IResourceManager.h"
+#include "../Structures/Matrix.h"
 #include "../Structures/Vertex.h"
 
 template <Disposable Texture, Disposable Buffer>
@@ -66,6 +68,12 @@ public:
 	std::vector<unsigned int> TextureIndices;
 	std::shared_ptr<Buffer> VertexBuffer;
 	std::shared_ptr<Buffer> IndexBuffer;
+	
+	Vector3 Position = Vector3();
+	float RotationX = 0.0f;
+	float RotationY = 0.0f;
+	float RotationZ = 0.0f;
+	Vector4 Color = Vector4();
 };
 
 template <Disposable Texture, Disposable Buffer>
@@ -115,7 +123,31 @@ public:
 		ProcessNode(scene->mRootNode, scene, this, graphics, fileName);
 	}
 
+	Matrix4x4 GetWorldMatrix() const noexcept
+	{
+		auto world = glm::mat4(1.0f);
+		
+		world = glm::scale(world, glm::vec3(ScaleX, ScaleY, ScaleZ));
+		
+		world = glm::rotate(world, RotationZ, glm::vec3(0.0f, 0.0f, 1.0f));
+		world = glm::rotate(world, RotationY, glm::vec3(0.0f, 1.0f, 0.0f));
+		world = glm::rotate(world, RotationX, glm::vec3(1.0f, 0.0f, 0.0f));
+
+		world = glm::translate(world, Position);
+
+		return Matrix4x4(world);
+	}
+
 	std::vector<Mesh<Texture, Buffer>> Meshes;
+	
+	Vector3 Position = Vector3();
+	float ScaleX = 0.0f;
+	float ScaleY = 0.0f;
+	float ScaleZ = 0.0f;
+	float RotationX = 0.0f;
+	float RotationY = 0.0f;
+	float RotationZ = 0.0f;
+	Vector4 Color = Vector4();
 
 private:
 	inline static constexpr unsigned int DEFAULT_FLAGS = aiProcess_GenNormals | aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices | aiProcess_SortByPType;

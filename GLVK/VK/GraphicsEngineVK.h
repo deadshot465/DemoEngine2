@@ -8,6 +8,7 @@
 #include "../../Interfaces/IGraphics.h"
 #include "../../Structures/Model.h"
 #include "../../Structures/Vertex.h"
+#include "../../UtilsCommon.h"
 #include "BufferVK.h"
 #include "ImageVK.h"
 #include "PipelineVK.h"
@@ -123,6 +124,7 @@ namespace GLVK
 			std::unique_ptr<Buffer> m_intermediateBuffer = nullptr;
 			std::vector<std::unique_ptr<Buffer>> m_mvpBuffers;
 			std::vector<std::unique_ptr<Buffer>> m_directionalLightBuffers;
+			std::unique_ptr<Buffer> m_dynamicUniformBuffer = nullptr;
 			std::unique_ptr<Image> m_depthImage = nullptr;
 			std::unique_ptr<Image> m_msaaImage = nullptr;
 			std::unique_ptr<Pipeline> m_pipeline = nullptr;
@@ -134,7 +136,12 @@ namespace GLVK
 			MVP m_mvp = {};
 			DirectionalLight m_directionalLight = {};
 			PushConstant m_pushConstant = {};
-			
+			struct
+			{
+				DynamicBufferObject Object;
+				vk::DeviceSize MinAlignment;
+				vk::DeviceSize DynamicAlignment;
+			} m_dynamicBufferObject;
 		};
 	}
 }
