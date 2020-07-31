@@ -76,9 +76,16 @@ void GLVK::VK::GraphicsEngine::Update(float deltaTime)
 
 	for (auto i = 0; i < m_dynamicBufferObject.Object.Models.size(); ++i)
 	{
+		auto& model = m_models[i];
+		model->RotationX = duration_between * glm::radians(45.0f);
+		model->RotationY = duration_between * glm::radians(-45.0f);
+		model->RotationZ = duration_between * glm::radians(45.0f);
+		auto& world = m_dynamicBufferObject.Object.Models[m_dynamicBufferObject.Object.ModelIndices[i]];
+		world = model->GetWorldMatrix();
+
 		auto ptr = reinterpret_cast<glm::mat4*>(reinterpret_cast<uint64_t>(m_dynamicBufferObject.Object.Buffer) + (m_dynamicBufferObject.DynamicAlignment * i));
 
-		*ptr = m_dynamicBufferObject.Object.Models[m_dynamicBufferObject.Object.ModelIndices[i]];
+		*ptr = world;
 	}
 
 	mapped = m_dynamicUniformBuffer->Map(VK_WHOLE_SIZE);

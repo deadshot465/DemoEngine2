@@ -68,9 +68,9 @@ public:
 
 		auto scale = glm::scale(glm::mat4(1.0f), glm::vec3(ScaleX, ScaleY, ScaleZ));
 
-		auto rotate_z = glm::rotate(glm::mat4(1.0f), glm::radians(RotationZ), glm::vec3(0.0f, 0.0f, 1.0f));
-		auto rotate_y = glm::rotate(glm::mat4(1.0f), glm::radians(RotationY), glm::vec3(0.0f, -1.0f, 0.0f));
-		auto rotate_x = glm::rotate(glm::mat4(1.0f), glm::radians(RotationX), glm::vec3(1.0f, 0.0f, 0.0f));
+		auto rotate_z = glm::rotate(glm::mat4(1.0f), RotationZ, glm::vec3(0.0f, 0.0f, 1.0f));
+		auto rotate_y = glm::rotate(glm::mat4(1.0f), RotationY, glm::vec3(0.0f, -1.0f, 0.0f));
+		auto rotate_x = glm::rotate(glm::mat4(1.0f), RotationX, glm::vec3(1.0f, 0.0f, 0.0f));
 
 		auto translate = glm::translate(glm::mat4(1.0f), static_cast<glm::vec3>(Position));
 		auto rotate = rotate_z * rotate_y * rotate_x;
@@ -136,9 +136,9 @@ public:
 		ScaleX = scale.x;
 		ScaleY = scale.y;
 		ScaleZ = scale.z;
-		RotationX = rotation.x;
-		RotationY = rotation.y;
-		RotationZ = rotation.z;
+		RotationX = glm::radians(rotation.x);
+		RotationY = glm::radians(rotation.y);
+		RotationZ = glm::radians(rotation.z);
 		Color = color;
 
 		auto importer = Assimp::Importer();
@@ -158,9 +158,9 @@ public:
 		
 		auto scale = glm::scale(glm::mat4(1.0f), glm::vec3(ScaleX, ScaleY, ScaleZ));
 		
-		auto rotate_z = glm::rotate(glm::mat4(1.0f), glm::radians(RotationZ), glm::vec3(0.0f, 0.0f, 1.0f));						 
-		auto rotate_y = glm::rotate(glm::mat4(1.0f), glm::radians(RotationY), glm::vec3(0.0f, -1.0f, 0.0f));
-		auto rotate_x = glm::rotate(glm::mat4(1.0f), glm::radians(RotationX), glm::vec3(1.0f, 0.0f, 0.0f));
+		auto rotate_z = glm::rotate(glm::mat4(1.0f), RotationZ, glm::vec3(0.0f, 0.0f, 1.0f));
+		auto rotate_y = glm::rotate(glm::mat4(1.0f), RotationY, glm::vec3(0.0f, -1.0f, 0.0f));
+		auto rotate_x = glm::rotate(glm::mat4(1.0f), RotationX, glm::vec3(1.0f, 0.0f, 0.0f));
 
 		auto translate = glm::translate(glm::mat4(1.0f), static_cast<glm::vec3>(Position));
 		auto rotate = rotate_z * rotate_y * rotate_x;
