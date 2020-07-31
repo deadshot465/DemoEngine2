@@ -33,6 +33,19 @@ struct Vector3
 {
 	float x, y, z;
 
+	Vector3() = default;
+
+	explicit Vector3(float value)
+		: x(value), y(value), z(value)
+	{
+
+	}
+
+	Vector3(float x, float y, float z)
+		: x(x), y(y), z(z)
+	{
+	}
+
 	operator glm::vec3() const
 	{
 		return glm::vec3(x, y, z);
@@ -54,6 +67,19 @@ struct Vector3
 struct Vector4
 {
 	float x, y, z, w;
+
+	Vector4() = default;
+
+	explicit Vector4(float value)
+		: x(value), y(value), z(value), w(value)
+	{
+
+	}
+
+	Vector4(float x, float y, float z, float w)
+		: x(x), y(y), z(z), w(w)
+	{
+	}
 
 	operator glm::vec4() const
 	{

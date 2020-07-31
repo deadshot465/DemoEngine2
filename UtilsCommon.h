@@ -7,6 +7,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <type_traits>
 #include <vector>
 #include "Structures/Matrix.h"
@@ -18,14 +19,16 @@ enum class BlendMode
 
 struct MVP
 {
-	Matrix4x4 View;
-	Matrix4x4 Projection;
+	glm::mat4 Model;
+	glm::mat4 View;
+	glm::mat4 Projection;
 };
 
 struct DynamicBufferObject
 {
-	std::vector<Matrix4x4> Models;
-	Matrix4x4* Buffer;
+	std::vector<uint32_t> ModelIndices;
+	std::vector<glm::mat4> Models;
+	glm::mat4* Buffer;
 };
 
 template <typename T = char>

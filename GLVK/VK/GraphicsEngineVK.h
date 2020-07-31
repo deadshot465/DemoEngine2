@@ -136,12 +136,12 @@ namespace GLVK
 			MVP m_mvp = {};
 			DirectionalLight m_directionalLight = {};
 			PushConstant m_pushConstant = {};
-			struct
+			/*struct
 			{
 				DynamicBufferObject Object;
 				vk::DeviceSize MinAlignment;
 				vk::DeviceSize DynamicAlignment;
-			} m_dynamicBufferObject;
+			} m_dynamicBufferObject;*/
 		};
 	}
 }

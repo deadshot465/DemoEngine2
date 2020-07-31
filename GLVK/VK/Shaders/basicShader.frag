@@ -19,25 +19,26 @@ layout (binding = 1) uniform DirectionalLight
     float ambient_intensity;
     float specular_intensity;
 } direction_light;
-layout (binding = 2) uniform sampler2D TexSampler[80];
+
+//layout (binding = 2) uniform sampler2D TexSampler[80];
 
 void main()
 {
     // Texture
-    vec4 tex_color = texture(TexSampler[pco.texture_index], inTexCoord);
+    /*vec4 tex_color = texture(TexSampler[pco.texture_index], inTexCoord);
     if (tex_color.a < 0.1) {
         discard;
-    }
+    }*/
 
     // Ambient
-    vec4 ambient = direction_light.diffuse * direction_light.ambient_intensity;
+    //vec4 ambient = direction_light.diffuse * direction_light.ambient_intensity;
 
     // Diffuse Light
-    vec4 light_direction = normalize(vec4(-direction_light.light_direction, 1.0));
+    /*vec4 light_direction = normalize(vec4(-direction_light.light_direction, 0.0));
     vec4 normal = normalize(inNormal);
     float intensity = max(dot(normal, light_direction), 0.0);
     vec4 diffuse = direction_light.diffuse * intensity;
 
-    vec4 result = (ambient + diffuse) * pco.object_color;
-    fragColor = result * tex_color;
+    vec4 result = (ambient + diffuse) * vec4(1.0, 0.0, 0.0, 1.0);*/
+    fragColor = vec4(1.0, 0.0, 0.0, 1.0);
 }

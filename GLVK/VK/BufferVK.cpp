@@ -2,7 +2,7 @@
 #include "UtilsVK.h"
 
 GLVK::VK::Buffer::Buffer(const vk::Device& device, const vk::BufferUsageFlags& bufferUsage, vk::DeviceSize size)
-	: IMappable(device)
+	: IMappable(device), m_bufferSize(size)
 {
 	auto info = vk::BufferCreateInfo();
 	info.pQueueFamilyIndices = nullptr;

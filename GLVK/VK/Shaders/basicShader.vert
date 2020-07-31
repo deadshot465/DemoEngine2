@@ -7,6 +7,11 @@ layout (binding = 0) uniform ModelViewProjection
     mat4 projection;
 } mvp;
 
+/*layout (binding = 2) uniform DynamicBufferObject
+{
+    mat4 model;
+} dbo;*/
+
 layout (location = 0) in vec3 inPosition;
 layout (location = 1) in vec3 inNormal;
 layout (location = 2) in vec2 inTexCoord;
@@ -19,8 +24,9 @@ void main()
 {
     vec4 position = vec4(inPosition, 1.0);
     gl_Position = mvp.projection * mvp.view * mvp.model * position;
+    
     outNormal = vec4(inNormal, 0.0);
     outNormal = transpose(inverse(mvp.model)) * outNormal;
     outTexCoord = inTexCoord;
-    fragPos = mvp.model * position;
+    fragPos = mvp.model * vec4(inPosition.xyz, 1.0);
 }

@@ -28,11 +28,11 @@ void Game::LoadContent()
 {
 	if (!IsInitialized()) return;
 
-	//m_graphics->CreateCube();
+	m_graphics->CreateCube();
 	//m_graphics->LoadModel("Models/Tank/tank.fbx");
 	//m_graphics->LoadModel("Models/Rainier-AK-3D/RAINIER AK _ Low4.fbx");
 	//m_graphics->LoadModel("Models/Pistol/Handgun_fbx_7.4_binary.fbx");
-	m_graphics->LoadModel("Models/Wolf/Wolf.fbx");
+	//m_graphics->LoadModel("Models/Wolf/Wolf.fbx");
 
 	m_graphics->Initialize();
 }

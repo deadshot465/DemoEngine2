@@ -70,6 +70,9 @@ public:
 	std::shared_ptr<Buffer> IndexBuffer;
 	
 	Vector3 Position = Vector3();
+	float ScaleX = 0.0f;
+	float ScaleY = 0.0f;
+	float ScaleZ = 0.0f;
 	float RotationX = 0.0f;
 	float RotationY = 0.0f;
 	float RotationZ = 0.0f;
@@ -110,8 +113,17 @@ public:
 			mesh.Dispose();
 	}
 
-	void Load(std::string_view fileName, IGraphics* graphics, bool flipUV = true)
+	void Load(std::string_view fileName, IGraphics* graphics, const Vector3& position, const Vector3& scale, const Vector3& rotation, const Vector4& color, bool flipUV = true)
 	{
+		Position = position;
+		ScaleX = scale.x;
+		ScaleY = scale.y;
+		ScaleZ = scale.z;
+		RotationX = rotation.x;
+		RotationY = rotation.y;
+		RotationZ = rotation.z;
+		Color = color;
+
 		auto importer = Assimp::Importer();
 		auto scene = importer.ReadFile(fileName.data(), flipUV ? DEFAULT_FLAGS | aiProcess_FlipUVs : DEFAULT_FLAGS);
 
@@ -123,19 +135,21 @@ public:
 		ProcessNode(scene->mRootNode, scene, this, graphics, fileName);
 	}
 
-	Matrix4x4 GetWorldMatrix() const noexcept
+	glm::mat4 GetWorldMatrix() const noexcept
 	{
 		auto world = glm::mat4(1.0f);
 		
-		world = glm::scale(world, glm::vec3(ScaleX, ScaleY, ScaleZ));
+		auto scale = glm::scale(glm::mat4(1.0f), glm::vec3(ScaleX, ScaleY, ScaleZ));
 		
-		world = glm::rotate(world, RotationZ, glm::vec3(0.0f, 0.0f, 1.0f));
-		world = glm::rotate(world, RotationY, glm::vec3(0.0f, 1.0f, 0.0f));
-		world = glm::rotate(world, RotationX, glm::vec3(1.0f, 0.0f, 0.0f));
+		auto rotate_z = glm::rotate(glm::mat4(1.0f), glm::radians(RotationZ), glm::vec3(0.0f, 0.0f, 1.0f));						 
+		auto rotate_y = glm::rotate(glm::mat4(1.0f), glm::radians(RotationY), glm::vec3(0.0f, -1.0f, 0.0f));
+		auto rotate_x = glm::rotate(glm::mat4(1.0f), glm::radians(RotationX), glm::vec3(1.0f, 0.0f, 0.0f));
 
-		world = glm::translate(world, static_cast<glm::vec3>(Position));
+		auto translate = glm::translate(glm::mat4(1.0f), static_cast<glm::vec3>(Position));
+		auto rotate = rotate_z * rotate_y * rotate_x;
+		world = scale * rotate * translate * world;
 
-		return Matrix4x4(world);
+		return world;
 	}
 
 	std::vector<Mesh<Texture, Buffer>> Meshes;
@@ -232,7 +246,15 @@ private:
 		for (unsigned int i = 0; i < node->mNumMeshes; ++i)
 		{
 			auto mesh = scene->mMeshes[node->mMeshes[i]];
-			model->Meshes.emplace_back(ProcessMesh(mesh, scene, graphics, fileName));
+			Mesh<Texture, Buffer>& _mesh = model->Meshes.emplace_back(ProcessMesh(mesh, scene, graphics, fileName));
+			_mesh.Color = model->Color;
+			_mesh.Position = model->Position;
+			_mesh.ScaleX = model->ScaleX;
+			_mesh.ScaleY = model->ScaleY;
+			_mesh.ScaleZ = model->ScaleZ;
+			_mesh.RotationX = model->RotationX;
+			_mesh.RotationY = model->RotationY;
+			_mesh.RotationZ = model->RotationZ;
 		}
 
 		for (unsigned int i = 0; i < node->mNumChildren; ++i)
