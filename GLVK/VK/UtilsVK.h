@@ -30,16 +30,16 @@ namespace GLVK
 
 		struct DirectionalLight
 		{
-			glm::vec4 Diffuse;
-			glm::vec3 LightDirection;
-			float AmbientIntensity;
-			float SpecularIntensity;
+			alignas(16) glm::vec4 Diffuse;
+			alignas(16) glm::vec3 LightDirection;
+			alignas(4) float AmbientIntensity;
+			alignas(4) float SpecularIntensity;
 		};
 		
 		struct PushConstant
 		{
-			uint32_t TextureIndex;
-			glm::vec4 ObjectColor;
+			alignas(4) uint32_t TextureIndex;
+			alignas(16) glm::vec4 ObjectColor;
 		};
 
 		inline std::vector<vk::VertexInputAttributeDescription> GetVertexInputAttributeDescription(uint32_t binding) noexcept

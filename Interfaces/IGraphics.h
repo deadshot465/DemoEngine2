@@ -25,7 +25,7 @@ public:
 	virtual std::shared_ptr<IDisposable> CreateIndexBuffer(const std::vector<uint32_t>& indices) = 0;
 	virtual std::tuple<IDisposable*, unsigned int> LoadTexture(std::string_view fileName) = 0;
 	virtual std::tuple<IDisposable*, unsigned int> LoadModel(std::string_view modelName) = 0;
-	virtual void* CreateCube() = 0;
+	virtual void* CreateCube(const Vector3& position, const Vector3& scale, const Vector3& rotation, const Vector4& color) = 0;
 	virtual void* CreateSphere() = 0;
 	virtual void* CreateCylinder() = 0;
 	virtual void* CreateCapsule() = 0;

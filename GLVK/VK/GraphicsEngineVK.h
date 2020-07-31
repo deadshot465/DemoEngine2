@@ -41,7 +41,7 @@ namespace GLVK
 			virtual std::shared_ptr<IDisposable> CreateIndexBuffer(const std::vector<uint32_t>& indices) override;
 			virtual std::tuple<IDisposable*, unsigned int> LoadTexture(std::string_view fileName) override;
 			virtual std::tuple<IDisposable*, unsigned int> LoadModel(std::string_view modelName) override;
-			virtual void* CreateCube() override;
+			virtual void* CreateCube(const Vector3& position, const Vector3& scale, const Vector3& rotation, const Vector4& color) override;
 			virtual void* CreateSphere() override;
 			virtual void* CreateCylinder() override;
 			virtual void* CreateCapsule() override;
@@ -111,7 +111,8 @@ namespace GLVK
 			vk::CommandPool m_commandPool = nullptr;
 			vk::DescriptorSetLayout m_descriptorSetLayout = nullptr;
 			vk::DescriptorPool m_descriptorPool = nullptr;
-			std::vector<vk::DescriptorSet> m_descriptorSets;
+			//std::vector<vk::DescriptorSet> m_descriptorSets;
+			vk::DescriptorSet m_descriptorSet = nullptr;
 			std::vector<vk::Framebuffer> m_framebuffers;
 			std::vector<vk::CommandBuffer> m_commandBuffers;
 			std::vector<vk::Semaphore> m_imageAcquiredSemaphores;
@@ -122,8 +123,10 @@ namespace GLVK
 			std::unique_ptr<Shader> m_vertexShader = nullptr;
 			std::unique_ptr<Shader> m_fragmentShader = nullptr;
 			std::unique_ptr<Buffer> m_intermediateBuffer = nullptr;
-			std::vector<std::unique_ptr<Buffer>> m_mvpBuffers;
-			std::vector<std::unique_ptr<Buffer>> m_directionalLightBuffers;
+			//std::vector<std::unique_ptr<Buffer>> m_mvpBuffers;
+			std::unique_ptr<Buffer> m_mvpBuffer = nullptr;
+			//std::vector<std::unique_ptr<Buffer>> m_directionalLightBuffers;
+			std::unique_ptr<Buffer> m_directionalLightBuffer = nullptr;
 			std::unique_ptr<Buffer> m_dynamicUniformBuffer = nullptr;
 			std::unique_ptr<Image> m_depthImage = nullptr;
 			std::unique_ptr<Image> m_msaaImage = nullptr;

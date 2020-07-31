@@ -40,5 +40,5 @@ void main()
     vec4 diffuse = direction_light.diffuse * intensity;
 
     vec4 result = (ambient + diffuse) * vec4(1.0, 0.0, 0.0, 1.0);*/
-    fragColor = vec4(1.0, 0.0, 0.0, 1.0);
+    fragColor = pco.object_color;
 }
