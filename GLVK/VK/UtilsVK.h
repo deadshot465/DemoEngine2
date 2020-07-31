@@ -145,6 +145,10 @@ namespace GLVK
 		{
 #ifdef _WIN32
 			return _aligned_malloc(size, alignment);
+#else
+			void* ptr = nullptr;
+			posix_memalign(&ptr, alignment, size);
+			return ptr;
 #endif
 		}
 

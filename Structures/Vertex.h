@@ -1,5 +1,7 @@
 #pragma once
+#ifdef _WIN32
 #include <DirectXMath.h>
+#endif
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
@@ -14,6 +16,7 @@ struct Vector2
 		return glm::vec2(x, y);
 	}
 
+#ifdef _WIN32
 	operator DirectX::XMFLOAT2() const
 	{
 		return DirectX::XMFLOAT2(x, y);
@@ -23,6 +26,7 @@ struct Vector2
 	{
 		return DirectX::XMVectorSet(x, y, 0.0f, 0.0f);
 	}
+#endif
 };
 
 struct Vector3
@@ -34,6 +38,7 @@ struct Vector3
 		return glm::vec3(x, y, z);
 	}
 
+#ifdef _WIN32
 	operator DirectX::XMFLOAT3() const
 	{
 		return DirectX::XMFLOAT3(x, y, z);
@@ -43,6 +48,7 @@ struct Vector3
 	{
 		return DirectX::XMVectorSet(x, y, z, 0.0f);
 	}
+#endif
 };
 
 struct Vector4
@@ -54,6 +60,7 @@ struct Vector4
 		return glm::vec4(x, y, z, w);
 	}
 
+#ifdef _WIN32
 	operator DirectX::XMFLOAT4() const
 	{
 		return DirectX::XMFLOAT4(x, y, z, w);
@@ -63,6 +70,7 @@ struct Vector4
 	{
 		return DirectX::XMVectorSet(x, y, z, w);
 	}
+#endif
 };
 
 struct Vertex

@@ -40,7 +40,7 @@ void GLVK::VK::Buffer::CopyBufferToImage(const vk::Image& targetImage, uint32_t 
 	info.imageExtent.depth = 1;
 	info.imageExtent.height = height;
 	info.imageExtent.width = width;
-	info.imageOffset = {};
+	info.imageOffset = vk::Offset3D();
 	info.imageSubresource.aspectMask = imageFlags;
 	info.imageSubresource.baseArrayLayer = 0;
 	info.imageSubresource.layerCount = 1;

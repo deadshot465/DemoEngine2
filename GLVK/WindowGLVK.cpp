@@ -58,7 +58,7 @@ void GLVK::Window::Update()
 
 	if (!m_graphics) return;
 
-    auto current_frame = high_resolution_clock::now();
+    auto current_frame = steady_clock::now();
     auto elapsed = duration<float, seconds::period>(current_frame - m_lastFrameTime).count();
 
     try {
@@ -120,5 +120,5 @@ void GLVK::Window::Create()
 	glfwSetKeyCallback(reinterpret_cast<GLFWwindow*>(m_handle), KeyCallback);
 	
 	m_isInitialized = true;
-	m_lastFrameTime = std::chrono::high_resolution_clock::now();
+	m_lastFrameTime = std::chrono::steady_clock::now();
 }

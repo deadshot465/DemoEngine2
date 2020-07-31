@@ -133,7 +133,7 @@ public:
 		world = glm::rotate(world, RotationY, glm::vec3(0.0f, 1.0f, 0.0f));
 		world = glm::rotate(world, RotationX, glm::vec3(1.0f, 0.0f, 0.0f));
 
-		world = glm::translate(world, Position);
+		world = glm::translate(world, static_cast<glm::vec3>(Position));
 
 		return Matrix4x4(world);
 	}

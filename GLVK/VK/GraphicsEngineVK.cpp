@@ -69,7 +69,7 @@ void GLVK::VK::GraphicsEngine::Update(float deltaTime)
     auto rotate_x = glm::rotate(glm::mat4(1.0f), duration_between * glm::radians(45.0f), glm::vec3(1.0f, 0.0f, 0.0f));
     auto rotate_y = glm::rotate(glm::mat4(1.0f), duration_between * glm::radians(-45.0f), glm::vec3(0.0f, -1.0f, 0.0f));
     auto rotate_z = glm::rotate(glm::mat4(1.0f), duration_between * glm::radians(45.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    m_mvp.Model = rotate_z * rotate_y * rotate_x * glm::mat4(1.0f);
+    //m_mvp.Model = rotate_z * rotate_y * rotate_x * glm::mat4(1.0f);
     auto data = m_logicalDevice.mapMemory(m_mvpBuffers[m_currentImageIndex]->GetDeviceMemory(), 0, sizeof(MVP));
     memcpy(data, &m_mvp, sizeof(MVP));
     m_logicalDevice.unmapMemory(m_mvpBuffers[m_currentImageIndex]->GetDeviceMemory());

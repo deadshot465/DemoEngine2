@@ -1,5 +1,7 @@
 #pragma once
+#ifdef _WIN32
 #include <DirectXMath.h>
+#endif
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/matrix_major_storage.hpp>
@@ -16,6 +18,7 @@ struct Matrix3x3
 		
 	}
 
+#ifdef _WIN32
 	Matrix3x3(const DirectX::XMFLOAT3X3& matrix)
 		: _00(matrix._11), _01(matrix._12), _02(matrix._13),
 		_10(matrix._21), _11(matrix._22), _12(matrix._23),
@@ -23,6 +26,7 @@ struct Matrix3x3
 	{
 
 	}
+#endif
 
 	Matrix3x3(const glm::mat3& matrix)
 		: _00(matrix[0][0]), _01(matrix[1][0]), _02(matrix[2][0]),
@@ -47,10 +51,12 @@ struct Matrix3x3
 		return matrix;
 	}
 
+#ifdef _WIN32
 	operator DirectX::XMFLOAT3X3() const
 	{
 		return DirectX::XMFLOAT3X3(_00, _01, _02, _10, _11, _12, _20, _21, _22);
 	}
+#endif
 };
 
 struct Matrix4x4
@@ -68,6 +74,7 @@ struct Matrix4x4
 
 	}
 
+#ifdef _WIN32
 	Matrix4x4(const DirectX::XMFLOAT4X4& matrix)
 		: _00(matrix._11), _01(matrix._12), _02(matrix._13), _03(matrix._14),
 		_10(matrix._21), _11(matrix._22), _12(matrix._23), _13(matrix._24),
@@ -76,6 +83,7 @@ struct Matrix4x4
 	{
 
 	}
+#endif
 
 	Matrix4x4(const glm::mat4& matrix)
 		: _00(matrix[0][0]), _01(matrix[1][0]), _02(matrix[2][0]), _03(matrix[3][0]),
@@ -108,8 +116,10 @@ struct Matrix4x4
 		return matrix;
 	}
 
+#ifdef _WIN32
 	operator DirectX::XMFLOAT4X4() const
 	{
 		return DirectX::XMFLOAT4X4(_00, _01, _02, _03, _10, _11, _12, _13, _20, _21, _22, _23, _30, _31, _32, _33);
 	}
+#endif
 };
