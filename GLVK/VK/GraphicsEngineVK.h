@@ -47,8 +47,7 @@ namespace GLVK
 			virtual void* CreateCapsule() override;
 
 		private:
-			//std::vector<Vertex> m_cubeVertices;
-			//std::vector<uint32_t> m_cubeIndices;
+			inline static constexpr size_t DESCRIPTOR_TYPE_COUNT = 3;
 
 			static std::vector<const char*> GetRequiredExtensions(bool debug) noexcept;
 			static bool CheckLayerSupport() noexcept;
@@ -139,12 +138,12 @@ namespace GLVK
 			MVP m_mvp = {};
 			DirectionalLight m_directionalLight = {};
 			PushConstant m_pushConstant = {};
-			/*struct
+			struct
 			{
 				DynamicBufferObject Object;
 				vk::DeviceSize MinAlignment;
 				vk::DeviceSize DynamicAlignment;
-			} m_dynamicBufferObject;*/
+			} m_dynamicBufferObject;
 		};
 	}
 }

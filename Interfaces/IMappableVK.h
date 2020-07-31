@@ -16,6 +16,9 @@ namespace GLVK
 			
 			virtual ~IMappable()
 			{
+				if (m_mappedMemory)
+					UnMap();
+
 				if (m_deviceMemory)
 				{
 					m_logicalDevice.freeMemory(m_deviceMemory);
@@ -24,10 +27,28 @@ namespace GLVK
 
 			virtual const vk::DeviceMemory& AllocateMemory(const vk::PhysicalDevice& physicalDevice, const vk::MemoryPropertyFlags& memoryProperties) = 0;
 
+			void* Map(vk::DeviceSize size, vk::DeviceSize offset = 0)
+			{
+				if (m_mappedMemory) return m_mappedMemory;
+				m_mappedMemory = m_logicalDevice.mapMemory(m_deviceMemory, offset, size);
+				return m_mappedMemory;
+			}
+
+			void UnMap()
+			{
+				m_logicalDevice.unmapMemory(m_deviceMemory);
+				m_mappedMemory = nullptr;
+			}
+
 			[[nodiscard]] const vk::DeviceMemory& GetDeviceMemory() const noexcept
             {
 			    return m_deviceMemory;
             }
+
+			[[nodiscard]] const void* GetMappedMemory() const noexcept
+			{
+				return m_mappedMemory;
+			}
 
 		protected:
 			uint32_t GetMemoryTypeIndex(const vk::PhysicalDevice& physicalDevice, uint32_t memoryType, const vk::MemoryPropertyFlags& memoryProperties)
@@ -56,6 +77,7 @@ namespace GLVK
 		protected:
 			vk::Device m_logicalDevice = nullptr;
 			vk::DeviceMemory m_deviceMemory = nullptr;
+			void* m_mappedMemory = nullptr;
 		};
 	}
 }

@@ -41,7 +41,7 @@ GLVK::VK::GraphicsEngine::GraphicsEngine(GLFWwindow* window, int width, int heig
 GLVK::VK::GraphicsEngine::~GraphicsEngine()
 {
 	Dispose();
-	//ReleaseAlignedMemory(m_dynamicBufferObject.Object.Buffer);
+	ReleaseAlignedMemory(m_dynamicBufferObject.Object.Buffer);
 	for (auto& mesh : m_meshes)
 		mesh.reset();
 	m_logicalDevice.destroyDescriptorSetLayout(m_descriptorSetLayout);
@@ -71,20 +71,18 @@ void GLVK::VK::GraphicsEngine::Update(float deltaTime)
     auto rotate_y = glm::rotate(glm::mat4(1.0f), duration_between * glm::radians(-45.0f), glm::vec3(0.0f, -1.0f, 0.0f));
     auto rotate_z = glm::rotate(glm::mat4(1.0f), duration_between * glm::radians(45.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     m_mvp.Model = rotate_z * rotate_y * rotate_x * glm::mat4(1.0f);
-    auto data = m_logicalDevice.mapMemory(m_mvpBuffer->GetDeviceMemory(), 0, sizeof(MVP));
-    memcpy(data, &m_mvp, sizeof(MVP));
-    m_logicalDevice.unmapMemory(m_mvpBuffer->GetDeviceMemory());
+	auto mapped = m_mvpBuffer->Map(sizeof(MVP));
+    memcpy(mapped, &m_mvp, sizeof(MVP));
 
-	/*for (auto i = 0; i < m_dynamicBufferObject.Object.Models.size(); ++i)
+	for (auto i = 0; i < m_dynamicBufferObject.Object.Models.size(); ++i)
 	{
 		auto ptr = reinterpret_cast<glm::mat4*>(reinterpret_cast<uint64_t>(m_dynamicBufferObject.Object.Buffer) + (m_dynamicBufferObject.DynamicAlignment * i));
 
-		*ptr = m_dynamicBufferObject.Object.Models[i];
+		*ptr = m_dynamicBufferObject.Object.Models[m_dynamicBufferObject.Object.ModelIndices[i]];
 	}
 
-	auto mapped = m_logicalDevice.mapMemory(m_dynamicUniformBuffer->GetDeviceMemory(), 0, VK_WHOLE_SIZE);
+	mapped = m_dynamicUniformBuffer->Map(VK_WHOLE_SIZE);
 	memcpy(mapped, m_dynamicBufferObject.Object.Buffer, m_dynamicUniformBuffer->GetBufferSize());
-	m_logicalDevice.unmapMemory(m_dynamicUniformBuffer->GetDeviceMemory());*/
 }
 
 void GLVK::VK::GraphicsEngine::Render()
@@ -182,16 +180,16 @@ std::tuple<IDisposable*, unsigned int> GLVK::VK::GraphicsEngine::LoadTexture(std
 std::tuple<IDisposable*, unsigned int> GLVK::VK::GraphicsEngine::LoadModel(std::string_view modelName)
 {
 	auto model = std::make_unique<MODEL>();
-	model->Load(modelName, this, Vector3(0.0f), Vector3(1.0f), Vector3(45.0f), Vector4(0.0f, 1.0f, 0.0f, 1.0f));
+	model->Load(modelName, this, Vector3(0.0f), Vector3(1.5f), Vector3(45.0f), Vector4(0.0f, 1.0f, 0.0f, 1.0f));
 	auto ptr = m_models.emplace_back(m_resourceManager->AddResource(model));
 	for (auto& mesh : ptr->Meshes)
 	{
 		mesh.VertexBuffer = std::dynamic_pointer_cast<Buffer>(CreateVertexBuffer(mesh.Vertices));
 		mesh.IndexBuffer = std::dynamic_pointer_cast<Buffer>(CreateIndexBuffer(mesh.Indices));
 	}
-	/*auto index = m_dynamicBufferObject.Object.ModelIndices.emplace_back(m_dynamicBufferObject.Object.ModelIndices.size());
-	m_dynamicBufferObject.Object.Models.emplace_back(ptr->GetWorldMatrix());*/
-	return std::make_tuple(ptr, static_cast<uint32_t>(0));
+	size_t index = m_dynamicBufferObject.Object.ModelIndices.emplace_back(static_cast<uint32_t>(m_dynamicBufferObject.Object.ModelIndices.size()));
+	m_dynamicBufferObject.Object.Models.emplace_back(ptr->GetWorldMatrix());
+	return std::make_tuple(ptr, static_cast<uint32_t>(index));
 }
 
 std::vector<const char*> GLVK::VK::GraphicsEngine::GetRequiredExtensions(bool debug) noexcept
@@ -326,6 +324,10 @@ void GLVK::VK::GraphicsEngine::Dispose()
     m_logicalDevice.waitIdle();
     m_logicalDevice.freeCommandBuffers(m_commandPool, m_commandBuffers);
 	m_pipeline.reset();
+	
+	m_dynamicUniformBuffer.reset();
+	m_mvpBuffer.reset();
+	m_directionalLightBuffer.reset();
 
 	for (auto i = 0; i < m_images.size(); ++i)
 	{
@@ -334,9 +336,7 @@ void GLVK::VK::GraphicsEngine::Dispose()
 	    m_logicalDevice.destroySemaphore(m_renderCompletedSemaphores[i]);
 	    m_logicalDevice.destroyFramebuffer(m_framebuffers[i]);
 		//m_mvpBuffers[i].reset();
-		m_mvpBuffer.reset();
 		//m_directionalLightBuffers[i].reset();
-		m_directionalLightBuffer.reset();
 	}
 
 	m_msaaImage.reset();
@@ -529,7 +529,7 @@ void GLVK::VK::GraphicsEngine::LoadShader()
 
 void GLVK::VK::GraphicsEngine::CreateDescriptorLayout()
 {
-	vk::DescriptorSetLayoutBinding bindings[2] = {};
+	vk::DescriptorSetLayoutBinding bindings[DESCRIPTOR_TYPE_COUNT] = {};
 	bindings[0].binding = 0;
 	bindings[0].descriptorCount = 1;
 	bindings[0].descriptorType = vk::DescriptorType::eUniformBuffer;
@@ -542,13 +542,13 @@ void GLVK::VK::GraphicsEngine::CreateDescriptorLayout()
 	bindings[1].pImmutableSamplers = nullptr;
 	bindings[1].stageFlags = vk::ShaderStageFlagBits::eFragment;
 
-	/*bindings[2].binding = 2;
+	bindings[2].binding = 2;
 	bindings[2].descriptorCount = 1;
 	bindings[2].descriptorType = vk::DescriptorType::eUniformBufferDynamic;
 	bindings[2].pImmutableSamplers = nullptr;
-	bindings[2].stageFlags = vk::ShaderStageFlagBits::eVertex;*/
+	bindings[2].stageFlags = vk::ShaderStageFlagBits::eVertex;
 
-	/*bindings[2].binding = 2;
+	/*bindings[2].binding = 3;
 	bindings[2].descriptorCount = static_cast<uint32_t>(m_textures.size());
 	bindings[2].descriptorType = vk::DescriptorType::eCombinedImageSampler;
 	bindings[2].pImmutableSamplers = nullptr;
@@ -562,13 +562,13 @@ void GLVK::VK::GraphicsEngine::CreateDescriptorLayout()
 
 void GLVK::VK::GraphicsEngine::CreateDescriptorSets()
 {
-	vk::DescriptorPoolSize pool_sizes[2] = {};
+	vk::DescriptorPoolSize pool_sizes[DESCRIPTOR_TYPE_COUNT] = {};
 	pool_sizes[0].descriptorCount = 1;
 	pool_sizes[0].type = vk::DescriptorType::eUniformBuffer;
 	pool_sizes[1].descriptorCount = 1;
 	pool_sizes[1].type = vk::DescriptorType::eUniformBuffer;;
-	//pool_sizes[2].descriptorCount = 1;
-	//pool_sizes[2].type = vk::DescriptorType::eUniformBufferDynamic;
+	pool_sizes[2].descriptorCount = 1;
+	pool_sizes[2].type = vk::DescriptorType::eUniformBufferDynamic;
 	/*pool_sizes[2].descriptorCount = m_textures.empty() ? 1 : static_cast<uint32_t>(m_textures.size());
 	pool_sizes[2].type = vk::DescriptorType::eCombinedImageSampler;*/
 
@@ -606,7 +606,12 @@ void GLVK::VK::GraphicsEngine::CreateDescriptorSets()
 	directional_light_buffer_info.offset = 0;
 	directional_light_buffer_info.range = sizeof(DirectionalLight);
 
-	auto write_descriptor_count = 2;
+	auto dynamic_buffer_info = vk::DescriptorBufferInfo();
+	dynamic_buffer_info.buffer = m_dynamicUniformBuffer->GetBuffer();
+	dynamic_buffer_info.offset = 0;
+	dynamic_buffer_info.range = VK_WHOLE_SIZE;
+
+	auto write_descriptor_count = DESCRIPTOR_TYPE_COUNT;
 	auto write_descriptors = std::vector<vk::WriteDescriptorSet>(write_descriptor_count);
 	write_descriptors[0].descriptorCount = 1;
 	write_descriptors[0].descriptorType = vk::DescriptorType::eUniformBuffer;
@@ -625,6 +630,15 @@ void GLVK::VK::GraphicsEngine::CreateDescriptorSets()
 	write_descriptors[1].pBufferInfo = &directional_light_buffer_info;
 	write_descriptors[1].pImageInfo = nullptr;
 	write_descriptors[1].pTexelBufferView = nullptr;
+
+	write_descriptors[2].descriptorCount = 1;
+	write_descriptors[2].descriptorType = vk::DescriptorType::eUniformBufferDynamic;
+	write_descriptors[2].dstArrayElement = 0;
+	write_descriptors[2].dstBinding = 2;
+	write_descriptors[2].dstSet = m_descriptorSet;
+	write_descriptors[2].pBufferInfo = &dynamic_buffer_info;
+	write_descriptors[2].pImageInfo = nullptr;
+	write_descriptors[2].pTexelBufferView = nullptr;
 
 	m_logicalDevice.updateDescriptorSets(write_descriptors, {});
 
@@ -729,9 +743,8 @@ void GLVK::VK::GraphicsEngine::CreateUniformBuffers()
 
 	m_mvpBuffer = std::make_unique<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eUniformBuffer, mvp_size);
 	auto mvp_memory = m_mvpBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-	auto mapped = m_logicalDevice.mapMemory(mvp_memory, 0, mvp_size);
+	auto mapped = m_mvpBuffer->Map(mvp_size);
 	memcpy(mapped, &m_mvp, mvp_size);
-	m_logicalDevice.unmapMemory(mvp_memory);
 	
 	m_directionalLight.AmbientIntensity = 0.1f;
 	m_directionalLight.SpecularIntensity = 0.5f;
@@ -750,18 +763,18 @@ void GLVK::VK::GraphicsEngine::CreateUniformBuffers()
 
 	m_directionalLightBuffer = std::make_unique<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eUniformBuffer, directional_light_size);
 	auto directional_light_memory = m_directionalLightBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-	mapped = m_logicalDevice.mapMemory(directional_light_memory, 0, directional_light_size);
+	mapped = m_directionalLightBuffer->Map(directional_light_size);
 	memcpy(mapped, &m_directionalLight, directional_light_size);
-	m_logicalDevice.unmapMemory(directional_light_memory);
 
 	m_pushConstant.ObjectColor = glm::vec4(0.0f, 1.0f, 1.0f, 1.0f);
 
-	/*m_dynamicBufferObject.DynamicAlignment = sizeof(glm::mat4);
+	m_dynamicBufferObject.DynamicAlignment = sizeof(glm::mat4);
 	m_dynamicBufferObject.MinAlignment = m_physicalDeviceProperties.limits.minUniformBufferOffsetAlignment;
 	if (m_dynamicBufferObject.MinAlignment > 0)
 	{
 		m_dynamicBufferObject.DynamicAlignment = (m_dynamicBufferObject.DynamicAlignment + m_dynamicBufferObject.MinAlignment - 1) & ~(m_dynamicBufferObject.MinAlignment - 1);
 	}
+
 	auto dbo_size = m_dynamicBufferObject.DynamicAlignment * m_dynamicBufferObject.Object.Models.size();
 	m_dynamicBufferObject.Object.Buffer = reinterpret_cast<glm::mat4*>(AllocateAlignedMemory(dbo_size, m_dynamicBufferObject.DynamicAlignment));
 	assert(m_dynamicBufferObject.Object.Buffer);
@@ -772,12 +785,11 @@ void GLVK::VK::GraphicsEngine::CreateUniformBuffers()
 	{
 		auto ptr = reinterpret_cast<glm::mat4*>(reinterpret_cast<uint64_t>(m_dynamicBufferObject.Object.Buffer) + (m_dynamicBufferObject.DynamicAlignment * i));
 
-		*ptr = m_dynamicBufferObject.Object.Models[i];
+		*ptr = m_dynamicBufferObject.Object.Models[m_dynamicBufferObject.Object.ModelIndices[i]];
 	}
 
-	auto mapped = m_logicalDevice.mapMemory(m_dynamicUniformBuffer->GetDeviceMemory(), 0, VK_WHOLE_SIZE);
+	mapped = m_dynamicUniformBuffer->Map(VK_WHOLE_SIZE);
 	memcpy(mapped, m_dynamicBufferObject.Object.Buffer, m_dynamicUniformBuffer->GetBufferSize());
-	m_logicalDevice.unmapMemory(m_dynamicUniformBuffer->GetDeviceMemory());*/
 }
 
 GLVK::VK::SwapchainDetails GLVK::VK::GraphicsEngine::GetSwapchainDetails(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface) {
@@ -925,7 +937,7 @@ void GLVK::VK::GraphicsEngine::BeginRenderPass()
 
 		m_commandBuffers[i].setViewport(0, { vk::Viewport(0.0f, 0.0f, static_cast<float>(m_extent.width), static_cast<float>(m_extent.height), 0.0f, 1.0f) });
         m_commandBuffers[i].setScissor(0, { scissor });
-		m_commandBuffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_pipeline->GetPipelineLayout(), 0, { m_descriptorSet }, nullptr);
+		/*m_commandBuffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_pipeline->GetPipelineLayout(), 0, { m_descriptorSet }, { 0 });*/
         m_commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, m_pipeline->GetPipeline(BlendMode::None));
 
 		for (const auto& mesh : m_meshes)
@@ -944,7 +956,9 @@ void GLVK::VK::GraphicsEngine::BeginRenderPass()
 
 		for (auto j = 0; j < m_models.size(); ++j)
 		{
-			/*uint32_t dynamic_offset = m_dynamicBufferObject.Object.ModelIndices[j] * m_dynamicBufferObject.DynamicAlignment;*/
+			uint32_t dynamic_offset = m_dynamicBufferObject.Object.ModelIndices[j] * static_cast<uint32_t>(m_dynamicBufferObject.DynamicAlignment);
+
+			m_commandBuffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_pipeline->GetPipelineLayout(), 0, { m_descriptorSet }, { dynamic_offset });
 
 			for (const auto& mesh : m_models[j]->Meshes)
 			{
