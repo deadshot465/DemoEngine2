@@ -11,6 +11,13 @@
 #include <cmath>
 #include <cstring>
 
+#if defined(max)
+#undef max
+#endif
+#if defined(min)
+#undef min
+#endif
+
 GLVK::VK::GraphicsEngine::GraphicsEngine(GLFWwindow* window, int width, int height, IResourceManager* resourceManager)
 	: IGraphics(window, width, height, resourceManager)
 {
@@ -77,9 +84,9 @@ void GLVK::VK::GraphicsEngine::Update(float deltaTime)
 	for (auto i = 0; i < m_dynamicBufferObject.Object.Models.size(); ++i)
 	{
 		auto& model = m_models[i];
-		model->RotationX = duration_between * glm::radians(45.0f);
-		model->RotationY = duration_between * glm::radians(-45.0f);
-		model->RotationZ = duration_between * glm::radians(45.0f);
+		model->RotationX += glm::radians(duration_between / 500.0f);
+		model->RotationY += glm::radians(duration_between / 500.0f);
+		model->RotationZ += glm::radians(duration_between / 500.0f);
 		auto& world = m_dynamicBufferObject.Object.Models[m_dynamicBufferObject.Object.ModelIndices[i]];
 		world = model->GetWorldMatrix();
 
@@ -184,11 +191,27 @@ std::tuple<IDisposable*, unsigned int> GLVK::VK::GraphicsEngine::LoadTexture(std
 	return std::make_tuple(ptr, static_cast<uint32_t>(index));
 }
 
-std::tuple<IDisposable*, unsigned int> GLVK::VK::GraphicsEngine::LoadModel(std::string_view modelName)
+std::tuple<IDisposable*, unsigned int> GLVK::VK::GraphicsEngine::LoadModel(std::string_view modelName, const Vector3& position, const Vector3& scale, const Vector3& rotation, const Vector4& color)
 {
+	auto resource = m_resourceManager->GetResource<MODEL>(modelName);
 	auto model = std::make_unique<MODEL>();
-	model->Load(modelName, this, Vector3(0.0f), Vector3(1.5f), Vector3(45.0f), Vector4(0.0f, 1.0f, 0.0f, 1.0f));
-	auto ptr = m_models.emplace_back(m_resourceManager->AddResource(model));
+	if (resource)
+	{
+		model->Color = color;
+		model->Meshes = resource->Meshes;
+		model->Position = position;
+		model->RotationX = glm::radians(rotation.x);
+		model->RotationY = glm::radians(rotation.y);
+		model->RotationZ = glm::radians(rotation.z);
+		model->ScaleX = scale.x;
+		model->ScaleY = scale.y;
+		model->ScaleZ = scale.z;
+	}
+	else
+	{
+		model->Load(modelName, this, position, scale, rotation, color);	
+	}
+	auto ptr = m_models.emplace_back(m_resourceManager->AddResource(model, modelName));
 	for (auto& mesh : ptr->Meshes)
 	{
 		mesh.VertexBuffer = std::dynamic_pointer_cast<Buffer>(CreateVertexBuffer(mesh.Vertices));

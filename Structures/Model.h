@@ -34,9 +34,27 @@ public:
 
 	}
 
-	Mesh(Mesh&& mesh) noexcept
+	Mesh(const Mesh& mesh)
+		: Vertices(mesh.Vertices), Indices(mesh.Indices), Textures(mesh.Textures), TextureIndices(mesh.TextureIndices)
+	{
+
+	}
+
+	explicit Mesh(Mesh&& mesh) noexcept
 		: Vertices(std::move(mesh.Vertices)), Indices(std::move(mesh.Indices)), Textures(std::move(mesh.Textures)), TextureIndices(std::move(mesh.TextureIndices)), VertexBuffer(std::move(mesh.VertexBuffer)), IndexBuffer(std::move(mesh.IndexBuffer))
 	{
+	}
+
+	Mesh& operator=(const Mesh& mesh)
+	{
+		if (this == &mesh) return *this;
+
+		Vertices = mesh.Vertices;
+		Indices = mesh.Indices;
+		Textures = mesh.Textures;
+		TextureIndices = mesh.TextureIndices;
+
+		return *this;
 	}
 
 	Mesh& operator=(Mesh&& mesh) noexcept
@@ -102,7 +120,7 @@ struct Model
 {
 public:
 	Model() = default;
-
+	
 	explicit Model(std::vector<Mesh<Texture, Buffer>>& meshes)
 		: Meshes(std::move(meshes))
 	{

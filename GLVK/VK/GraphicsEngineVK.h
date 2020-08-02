@@ -40,7 +40,7 @@ namespace GLVK
 			virtual std::shared_ptr<IDisposable> CreateVertexBuffer(const std::vector<Vertex>& vertices) override;
 			virtual std::shared_ptr<IDisposable> CreateIndexBuffer(const std::vector<uint32_t>& indices) override;
 			virtual std::tuple<IDisposable*, unsigned int> LoadTexture(std::string_view fileName) override;
-			virtual std::tuple<IDisposable*, unsigned int> LoadModel(std::string_view modelName) override;
+			virtual std::tuple<IDisposable*, unsigned int> LoadModel(std::string_view modelName, const Vector3& position, const Vector3& scale, const Vector3& rotation, const Vector4& color) override;
 			virtual void* CreateCube(const Vector3& position, const Vector3& scale, const Vector3& rotation, const Vector4& color) override;
 			virtual void* CreateSphere() override;
 			virtual void* CreateCylinder() override;

@@ -64,6 +64,7 @@ inline T* IResourceManager::AddResource(std::unique_ptr<T>& resource, std::strin
 template<Disposable T>
 inline T* IResourceManager::GetResource(std::string_view resourceName)
 {
+	if (m_resources.empty()) return nullptr;
 	auto item = std::find_if(m_resources.begin(), m_resources.end(), [&](const std::unique_ptr<IDisposable>& resource) {
 		return resource->Name == resourceName;
 		});

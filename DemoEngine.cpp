@@ -1,4 +1,5 @@
 ﻿#include <iostream>
+#include <spdlog/spdlog.h>
 #ifdef _WIN32
 #include "DX/WindowDX.h"
 #endif
@@ -20,7 +21,7 @@ int main()
 	}
 	catch (const std::exception& ex)
 	{
-		std::cerr << "An error occurred: " << ex.what() << '\n';
+		spdlog::error(ex.what());
 		return -1;
 	}
 
