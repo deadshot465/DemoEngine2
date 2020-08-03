@@ -192,6 +192,8 @@
     <ClInclude Include="Interfaces\IGraphics.h" />
     <ClInclude Include="Interfaces\IMappableVK.h" />
     <ClInclude Include="Interfaces\IResourceManager.h" />
+    <ClInclude Include="Interfaces\IScene.h" />
+    <ClInclude Include="Interfaces\ISceneManager.h" />
     <ClInclude Include="Interfaces\ISwapChainDX.h" />
     <ClInclude Include="Interfaces\IWindow.h" />
     <ClInclude Include="Structures\Matrix.h" />

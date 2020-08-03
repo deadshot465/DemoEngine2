@@ -185,6 +185,12 @@
     <ClInclude Include="Camera.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="Interfaces\ISceneManager.h">
+      <Filter>ヘッダー ファイル\Interfaces</Filter>
+    </ClInclude>
+    <ClInclude Include="Interfaces\IScene.h">
+      <Filter>ヘッダー ファイル\Interfaces</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="DX\DX11\Shaders\CubeVS.hlsl" />
