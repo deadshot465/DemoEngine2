@@ -153,6 +153,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Camera.cpp" />
     <ClCompile Include="DemoEngine.cpp" />
     <ClCompile Include="DX\DX11\BufferFactory.cpp" />
     <ClCompile Include="DX\DX11\DeviceContext.cpp" />
@@ -170,6 +171,7 @@
     <ClCompile Include="Interfaces\IWindow.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Camera.h" />
     <ClInclude Include="DX\DX11\BufferFactory.h" />
     <ClInclude Include="DX\DX11\DeviceContext.h" />
     <ClInclude Include="DX\DX11\GraphicsEngineDX11.h" />

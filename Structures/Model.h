@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 #include <vector>
 #include "../Interfaces/IDisposable.h"
@@ -80,21 +81,48 @@ public:
 		IndexBuffer->Dispose();
 	}
 
-	glm::mat4 GetWorldMatrix() const noexcept
+	template <typename T = glm::mat4>
+	T GetWorldMatrix() const noexcept
 	{
-		auto world = glm::mat4(1.0f);
+		if constexpr (std::is_same_v<T, glm::mat4>)
+		{
+			auto world = glm::mat4(1.0f);
 
-		auto scale = glm::scale(glm::mat4(1.0f), glm::vec3(ScaleX, ScaleY, ScaleZ));
+			auto scale = glm::scale(glm::mat4(1.0f), glm::vec3(ScaleX, ScaleY, ScaleZ));
 
-		auto rotate_z = glm::rotate(glm::mat4(1.0f), RotationZ, glm::vec3(0.0f, 0.0f, 1.0f));
-		auto rotate_y = glm::rotate(glm::mat4(1.0f), RotationY, glm::vec3(0.0f, -1.0f, 0.0f));
-		auto rotate_x = glm::rotate(glm::mat4(1.0f), RotationX, glm::vec3(1.0f, 0.0f, 0.0f));
+			auto rotate_z = glm::rotate(glm::mat4(1.0f), RotationZ, glm::vec3(0.0f, 0.0f, 1.0f));
+			auto rotate_y = glm::rotate(glm::mat4(1.0f), RotationY, glm::vec3(0.0f, -1.0f, 0.0f));
+			auto rotate_x = glm::rotate(glm::mat4(1.0f), RotationX, glm::vec3(1.0f, 0.0f, 0.0f));
 
-		auto translate = glm::translate(glm::mat4(1.0f), static_cast<glm::vec3>(Position));
-		auto rotate = rotate_z * rotate_y * rotate_x;
-		world = scale * rotate * translate * world;
+			auto translate = glm::translate(glm::mat4(1.0f), static_cast<glm::vec3>(Position));
+			auto rotate = rotate_z * rotate_y * rotate_x;
+			world = scale * rotate * translate * world;
 
-		return world;
+			return world;
+		}
+		else if constexpr (std::is_same_v<T, DirectX::XMMATRIX> || std::is_same_v<T, DirectX::XMFLOAT4X4>)
+		{
+			auto world = DirectX::XMMatrixIdentity();
+			auto scale = DirectX::XMMatrixScaling(ScaleX, ScaleY, ScaleZ);
+			auto rotate_z = DirectX::XMMatrixRotationZ(RotationZ);
+			auto rotate_y = DirectX::XMMatrixRotationY(RotationY);
+			auto rotate_x = DirectX::XMMatrixRotationX(RotationX);
+			auto translate = DirectX::XMMatrixTranslation(Position.x, Position.y, Position.z);
+			auto rotate = rotate_z * rotate_y * rotate_x;
+			
+			world = scale * rotate * translate * world;
+
+			if constexpr (std::is_same_v<T, DirectX::XMFLOAT4X4>)
+			{
+				auto mat = DirectX::XMFLOAT4X4();
+				DirectX::XMStoreFloat4x4(&mat, world);
+				return mat;
+			}
+			else
+			{
+				return world;
+			}
+		}
 	}
 
 	std::vector<Vertex> Vertices;
@@ -170,21 +198,48 @@ public:
 		ProcessNode(scene->mRootNode, scene, this, graphics, fileName);
 	}
 
-	glm::mat4 GetWorldMatrix() const noexcept
+	template <typename T = glm::mat4>
+	T GetWorldMatrix() const noexcept
 	{
-		auto world = glm::mat4(1.0f);
-		
-		auto scale = glm::scale(glm::mat4(1.0f), glm::vec3(ScaleX, ScaleY, ScaleZ));
-		
-		auto rotate_z = glm::rotate(glm::mat4(1.0f), RotationZ, glm::vec3(0.0f, 0.0f, 1.0f));
-		auto rotate_y = glm::rotate(glm::mat4(1.0f), RotationY, glm::vec3(0.0f, -1.0f, 0.0f));
-		auto rotate_x = glm::rotate(glm::mat4(1.0f), RotationX, glm::vec3(1.0f, 0.0f, 0.0f));
+		if constexpr (std::is_same_v<T, glm::mat4>)
+		{
+			auto world = glm::mat4(1.0f);
 
-		auto translate = glm::translate(glm::mat4(1.0f), static_cast<glm::vec3>(Position));
-		auto rotate = rotate_z * rotate_y * rotate_x;
-		world = scale * rotate * translate * world;
+			auto scale = glm::scale(glm::mat4(1.0f), glm::vec3(ScaleX, ScaleY, ScaleZ));
 
-		return world;
+			auto rotate_z = glm::rotate(glm::mat4(1.0f), RotationZ, glm::vec3(0.0f, 0.0f, 1.0f));
+			auto rotate_y = glm::rotate(glm::mat4(1.0f), RotationY, glm::vec3(0.0f, -1.0f, 0.0f));
+			auto rotate_x = glm::rotate(glm::mat4(1.0f), RotationX, glm::vec3(1.0f, 0.0f, 0.0f));
+
+			auto translate = glm::translate(glm::mat4(1.0f), static_cast<glm::vec3>(Position));
+			auto rotate = rotate_z * rotate_y * rotate_x;
+			world = scale * rotate * translate * world;
+
+			return world;
+		}
+		else if constexpr (std::is_same_v<T, DirectX::XMMATRIX> || std::is_same_v<T, DirectX::XMFLOAT4X4>)
+		{
+			auto world = DirectX::XMMatrixIdentity();
+			auto scale = DirectX::XMMatrixScaling(ScaleX, ScaleY, ScaleZ);
+			auto rotate_z = DirectX::XMMatrixRotationZ(RotationZ);
+			auto rotate_y = DirectX::XMMatrixRotationY(RotationY);
+			auto rotate_x = DirectX::XMMatrixRotationX(RotationX);
+			auto translate = DirectX::XMMatrixTranslation(Position.x, Position.y, Position.z);
+			auto rotate = rotate_z * rotate_y * rotate_x;
+
+			world = scale * rotate * translate * world;
+
+			if constexpr (std::is_same_v<T, DirectX::XMFLOAT4X4>)
+			{
+				auto mat = DirectX::XMFLOAT4X4();
+				DirectX::XMStoreFloat4x4(&mat, world);
+				return mat;
+			}
+			else
+			{
+				return world;
+			}
+		}
 	}
 
 	std::vector<Mesh<Texture, Buffer>> Meshes;

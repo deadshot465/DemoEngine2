@@ -11,13 +11,6 @@
 #include <cmath>
 #include <cstring>
 
-#if defined(max)
-#undef max
-#endif
-#if defined(min)
-#undef min
-#endif
-
 GLVK::VK::GraphicsEngine::GraphicsEngine(GLFWwindow* window, int width, int height, IResourceManager* resourceManager)
 	: IGraphics(window, width, height, resourceManager)
 {

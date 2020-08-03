@@ -11,6 +11,29 @@ struct Vector2
 {
 	float x, y;
 
+	static Vector2 Zero() noexcept
+	{
+		return Vector2(0.0f);
+	}
+
+	static Vector2 One() noexcept
+	{
+		return Vector2(1.0f);
+	}
+
+	Vector2() = default;
+
+	explicit Vector2(float value)
+		: x(value), y(value)
+	{
+
+	}
+
+	Vector2(float x, float y)
+		: x(x), y(y)
+	{
+	}
+
 	operator glm::vec2() const
 	{
 		return glm::vec2(x, y);
@@ -32,6 +55,16 @@ struct Vector2
 struct Vector3
 {
 	float x, y, z;
+
+	static Vector3 Zero() noexcept
+	{
+		return Vector3(0.0f);
+	}
+
+	static Vector3 One() noexcept
+	{
+		return Vector3(1.0f);
+	}
 
 	Vector3() = default;
 
@@ -67,6 +100,16 @@ struct Vector3
 struct Vector4
 {
 	float x, y, z, w;
+
+	static Vector4 Zero() noexcept
+	{
+		return Vector4(0.0f);
+	}
+
+	static Vector4 One() noexcept
+	{
+		return Vector4(1.0f);
+	}
 
 	Vector4() = default;
 
