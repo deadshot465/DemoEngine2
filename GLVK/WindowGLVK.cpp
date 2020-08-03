@@ -32,7 +32,7 @@ void GLVK::Window::Run()
 	while (!glfwWindowShouldClose(reinterpret_cast<GLFWwindow*>(m_handle)))
 	{
 		glfwPollEvents();
-		
+
 		Update();
 		Render();
 	}
