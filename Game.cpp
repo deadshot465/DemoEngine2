@@ -4,6 +4,7 @@
 #include "Interfaces/IResourceManager.h"
 
 Game::Game(std::wstring_view title, int width, int height, bool fullScreen)
+	: m_lastFrameTime(std::chrono::steady_clock::now())
 {
 	m_resourceManager = std::make_unique<IResourceManager>();
 	m_window = std::make_unique<GLVK::Window>(title, width, height, fullScreen);
@@ -44,7 +45,50 @@ bool Game::IsInitialized() const noexcept
 	return m_window->IsInitialized();
 }
 
+void Game::Update()
+{
+	using namespace std::chrono;
+
+	if (!m_window) return;
+
+	try
+	{
+		m_window->Update(m_deltaTime);
+	}
+	catch (const std::exception&)
+	{
+		throw;
+	}
+}
+
+void Game::Render()
+{
+	if (!m_window) return;
+	
+	try
+	{
+		m_window->Render(m_deltaTime);
+	}
+	catch (const std::exception&)
+	{
+		throw;
+	}
+}
+
 void Game::Run()
 {
-	m_window->Run();
+	using namespace std::chrono;
+
+	while (m_window->IsRunning(m_deltaTime))
+	{
+		m_currentFrameTime = steady_clock::now();
+		m_deltaTime = duration<float, seconds::period>(m_currentFrameTime - m_lastFrameTime).count();
+
+		Update();
+		Render();
+
+		m_lastFrameTime = m_currentFrameTime;
+	}
+
+	m_window->Dispose();
 }

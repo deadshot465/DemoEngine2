@@ -13,6 +13,11 @@ GLVK::Window::~Window()
 	glfwTerminate();
 }
 
+bool GLVK::Window::IsRunning(float deltaTime) noexcept
+{
+	return !glfwWindowShouldClose(reinterpret_cast<GLFWwindow*>(m_handle));
+}
+
 bool GLVK::Window::Initialize()
 {
 	try
@@ -27,19 +32,6 @@ bool GLVK::Window::Initialize()
 	}
 }
 
-void GLVK::Window::Run()
-{
-	while (!glfwWindowShouldClose(reinterpret_cast<GLFWwindow*>(m_handle)))
-	{
-		glfwPollEvents();
-
-		Update();
-		Render();
-	}
-
-	Dispose();
-}
-
 void GLVK::Window::Setup(IGraphics* graphics)
 {
 	try
@@ -52,27 +44,24 @@ void GLVK::Window::Setup(IGraphics* graphics)
 	}
 }
 
-void GLVK::Window::Update()
+void GLVK::Window::Update(float deltaTime)
 {
     using namespace std::chrono;
 
+	glfwPollEvents();
+
 	if (!m_graphics) return;
 
-    auto current_frame = steady_clock::now();
-    auto elapsed = duration<float, seconds::period>(current_frame - m_lastFrameTime).count();
-
     try {
-        m_graphics->Update(elapsed);
+        m_graphics->Update(deltaTime);
     }
     catch (const std::exception&)
     {
         throw;
     }
-
-    m_lastFrameTime = current_frame;
 }
 
-void GLVK::Window::Render()
+void GLVK::Window::Render(float deltaTime)
 {
 	if (!m_graphics) return;
 

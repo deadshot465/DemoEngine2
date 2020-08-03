@@ -13,9 +13,12 @@ public:
 	virtual ~IWindow() = default;
 
 	virtual bool Initialize() = 0;
-	virtual void Run() = 0;
 	virtual void Setup(IGraphics* graphics) = 0;
+	virtual void Update(float deltaTime) = 0;
+	virtual void Render(float deltaTime) = 0;
+	virtual void Dispose() = 0;
 
+	virtual bool IsRunning(float deltaTime) noexcept = 0;
 	constexpr int GetWidth() const noexcept { return m_width; }
 	constexpr int GetHeight() const noexcept { return m_height; }
 	constexpr bool IsInitialized() const noexcept { return m_isInitialized; }
@@ -23,10 +26,6 @@ public:
 	constexpr IGraphics* GetGraphics() const noexcept { return m_graphics; }
 
 protected:
-	virtual void Update() = 0;
-	virtual void Render() = 0;
-	virtual void Dispose() = 0;
-
 	int m_width = 0;
 	int m_height = 0;
 	bool m_isInitialized = false;

@@ -23,16 +23,13 @@ namespace DX
 
 		// IWindow ÇâÓÇµÇƒåpè≥Ç≥ÇÍÇ‹ÇµÇΩ
 		virtual bool Initialize() override;
-		virtual void Run() override;
 		virtual void Setup(IGraphics* graphics) override;
-
-	protected:
-		virtual void Update() override;
-		virtual void Render() override;
+		virtual void Update(float deltaTime) override;
+		virtual void Render(float deltaTime) override;
 		virtual void Dispose() override;
 
-		IGraphics* Graphics = nullptr;
-		
+		bool IsRunning(float deltaTime) noexcept override;
+
 	private:
 		static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
@@ -41,6 +38,7 @@ namespace DX
 		void SetHwnd(HWND hwnd);
 
 		DEVMODEW m_devMode = {};
+		float m_deltaTime = 0.0f;
 		
 		//std::unique_ptr<DX11::GraphicsEngine> m_graphicsEngineDX11 = nullptr;
 	};
