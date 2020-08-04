@@ -80,13 +80,13 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>D:\source\repos\DemoEngine\Includes;D:\VulkanSDK\1.2.141.2\Include;$(IncludePath)</IncludePath>
-    <LibraryPath>D:\VulkanSDK\1.2.141.2\Lib;D:\source\repos\DemoEngine\Libs;$(LibraryPath)</LibraryPath>
+    <IncludePath>D:\source\repos\DemoEngine\Includes;D:\VulkanSDK\1.2.148.0\Include;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\VulkanSDK\1.2.148.0\Lib;D:\source\repos\DemoEngine\Libs;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>D:\source\repos\DemoEngine\Includes;D:\VulkanSDK\1.2.141.2\Include;$(IncludePath)</IncludePath>
-    <LibraryPath>D:\VulkanSDK\1.2.141.2\Lib;D:\source\repos\DemoEngine\Libs;$(LibraryPath)</LibraryPath>
+    <IncludePath>D:\source\repos\DemoEngine\Includes;D:\VulkanSDK\1.2.148.0\Include;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\VulkanSDK\1.2.148.0\Lib;D:\source\repos\DemoEngine\Libs;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -169,6 +169,7 @@
     <ClCompile Include="GLVK\WindowGLVK.cpp" />
     <ClCompile Include="Interfaces\ISwapChainDX.cpp" />
     <ClCompile Include="Interfaces\IWindow.cpp" />
+    <ClCompile Include="Scenes\GameScene.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
@@ -196,6 +197,7 @@
     <ClInclude Include="Interfaces\ISceneManager.h" />
     <ClInclude Include="Interfaces\ISwapChainDX.h" />
     <ClInclude Include="Interfaces\IWindow.h" />
+    <ClInclude Include="Scenes\GameScene.h" />
     <ClInclude Include="Structures\Matrix.h" />
     <ClInclude Include="Structures\Model.h" />
     <ClInclude Include="Structures\Vertex.h" />

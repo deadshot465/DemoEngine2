@@ -2,6 +2,7 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+#include <d3d12.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <memory>
 #include <stdexcept>
@@ -11,6 +12,7 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+#include "../GLVK/VK/UtilsVK.h"
 #include "../Interfaces/IDisposable.h"
 #include "../Interfaces/IGraphics.h"
 #include "../Interfaces/IResourceManager.h"
@@ -125,6 +127,18 @@ public:
 		}
 	}
 
+	template <typename T>
+	auto Render(float deltaTime, T& commandBuffer) -> typename std::enable_if_t<std::is_same_v<T, vk::CommandBuffer>, void>
+	{
+
+	}
+
+	template <typename T>
+	auto Render(float deltaTime, T* commandBuffer) -> typename std::enable_if_t<std::is_same_v<T, ID3D12CommandList>, void>
+	{
+
+	}
+
 	std::vector<Vertex> Vertices;
 	std::vector<uint32_t> Indices;
 	std::vector<Texture*> Textures;
@@ -148,6 +162,17 @@ struct Model
 {
 public:
 	Model() = default;
+
+	Model(const Model& model)
+		: Meshes(model.Meshes), Position(model.Position), ScaleX(model.ScaleX),
+		ScaleY(model.ScaleY), ScaleZ(model.ScaleZ), RotationX(model.RotationX),
+		RotationY(model.RotationY), RotationZ(model.RotationZ), Color(model.Color),
+		ModelIndex(model.ModelIndex)
+	{
+		m_handle = model.m_handle;
+		m_isDisposed = model.m_isDisposed;
+		this->Name = model.Name;
+	}
 	
 	explicit Model(std::vector<Mesh<Texture, Buffer>>& meshes)
 		: Meshes(std::move(meshes))
@@ -159,6 +184,27 @@ public:
 		: Meshes(std::move(model.Meshes))
 	{
 
+	}
+
+	Model& operator=(const Model& model)
+	{
+		if (this == &model) return *this;
+
+		Meshes = model.Meshes;
+		Position = model.Position;
+		ScaleX = model.ScaleX;
+		ScaleY = model.ScaleY;
+		ScaleZ = model.ScaleZ;
+		RotationX = model.RotationX;
+		RotationY = model.RotationY;
+		RotationZ = model.RotationZ;
+		Color = model.Color;
+		ModelIndex = model.ModelIndex;
+		m_handle = model.m_handle;
+		m_isDisposed = model.m_isDisposed;
+		Name = model.Name;
+
+		return *this;
 	}
 
 	Model& operator=(Model&& model) noexcept
@@ -242,6 +288,29 @@ public:
 		}
 	}
 
+	template <typename T>
+	auto Render(float deltaTime, const T& commandBuffer, uint32_t dynamicOffset, const vk::PipelineLayout& pipelineLayout, const vk::DescriptorSet& descriptorSet, GLVK::VK::PushConstant& pushConstant) -> typename std::enable_if_t<std::is_same_v<T, vk::CommandBuffer>, void>
+	{
+		uint32_t dynamic_offset = ModelIndex * dynamicOffset;
+
+		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, { descriptorSet }, { dynamic_offset });
+
+		for (const auto& mesh : Meshes)
+		{
+			pushConstant.ObjectColor = Color;
+			commandBuffer.pushConstants<GLVK::VK::PushConstant>(pipelineLayout, vk::ShaderStageFlagBits::eFragment, 0, { pushConstant });
+			commandBuffer.bindVertexBuffers(0, mesh.VertexBuffer->GetBuffer(), { 0 });
+			commandBuffer.bindIndexBuffer(mesh.IndexBuffer->GetBuffer(), 0, vk::IndexType::eUint32);
+			commandBuffer.drawIndexed(static_cast<uint32_t>(mesh.Indices.size()), 1, 0, 0, 0);
+		}
+	}
+
+	template <typename T>
+	auto Render(float deltaTime, T* commandBuffer) -> typename std::enable_if_t<std::is_same_v<T, ID3D12CommandList>, void>
+	{
+
+	}
+
 	std::vector<Mesh<Texture, Buffer>> Meshes;
 	
 	Vector3 Position = Vector3();
@@ -252,6 +321,7 @@ public:
 	float RotationY = 0.0f;
 	float RotationZ = 0.0f;
 	Vector4 Color = Vector4();
+	uint32_t ModelIndex = 0;
 
 private:
 	inline static constexpr unsigned int DEFAULT_FLAGS = aiProcess_GenNormals | aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices | aiProcess_SortByPType;

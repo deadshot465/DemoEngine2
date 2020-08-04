@@ -52,6 +52,12 @@
     <Filter Include="ソース ファイル\Interfaces">
       <UniqueIdentifier>{a526a6c0-6121-4a38-9cb7-af7b4e4e99d5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ソース ファイル\Scenes">
+      <UniqueIdentifier>{bc6cb81f-3b0a-4bbb-a985-439d28ff4ab3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\Scenes">
+      <UniqueIdentifier>{c049d68b-d940-4385-86c6-c43fb864a5f1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DemoEngine.cpp">
@@ -101,6 +107,9 @@
     </ClCompile>
     <ClCompile Include="Camera.cpp">
       <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Scenes\GameScene.cpp">
+      <Filter>ソース ファイル\Scenes</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -190,6 +199,9 @@
     </ClInclude>
     <ClInclude Include="Interfaces\IScene.h">
       <Filter>ヘッダー ファイル\Interfaces</Filter>
+    </ClInclude>
+    <ClInclude Include="Scenes\GameScene.h">
+      <Filter>ヘッダー ファイル\Scenes</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

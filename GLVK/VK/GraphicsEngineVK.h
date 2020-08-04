@@ -1,10 +1,9 @@
 #pragma once
-#define GLFW_INCLUDE_VULKAN
+#include <vulkan/vulkan.hpp>
 #include <GLFW/glfw3.h>
 #include <memory>
 #include <string_view>
 #include <vector>
-#include <vulkan/vulkan.hpp>
 #include "../../Interfaces/IGraphics.h"
 #include "../../Structures/Model.h"
 #include "../../Structures/Vertex.h"
@@ -37,6 +36,9 @@ namespace GLVK
 			virtual void Initialize() override;
 			virtual void Update(float deltaTime) override;
 			virtual void Render() override;
+			virtual void BeginDraw() override;
+			virtual void EndDraw() override;
+
 			virtual std::shared_ptr<IDisposable> CreateVertexBuffer(const std::vector<Vertex>& vertices) override;
 			virtual std::shared_ptr<IDisposable> CreateIndexBuffer(const std::vector<uint32_t>& indices) override;
 			virtual std::tuple<IDisposable*, unsigned int> LoadTexture(std::string_view fileName) override;
@@ -45,6 +47,31 @@ namespace GLVK
 			virtual void* CreateSphere() override;
 			virtual void* CreateCylinder() override;
 			virtual void* CreateCapsule() override;
+			
+			const std::vector<vk::CommandBuffer>& GetCommandBufferOrLists() noexcept
+			{
+				return m_commandBuffers;
+			}
+
+			vk::DeviceSize GetDynamicOffset() const noexcept
+			{
+				return m_dynamicBufferObject.DynamicAlignment;
+			}
+
+			const vk::PipelineLayout& GetPipelineLayout() const noexcept
+			{
+				return m_pipeline->GetPipelineLayout();
+			}
+
+			const vk::DescriptorSet& GetDescriptorSet() const noexcept
+			{
+				return m_descriptorSet;
+			}
+
+			PushConstant& GetPushConstant() noexcept
+			{
+				return m_pushConstant;
+			}
 
 		private:
 			inline static constexpr size_t DESCRIPTOR_TYPE_COUNT = 3;
