@@ -20,6 +20,8 @@ public:
 	virtual void Initialize() = 0;
 	virtual void Update(float deltaTime) = 0;
 	virtual void Render() = 0;
+	virtual void BeginDraw() = 0;
+	virtual void EndDraw() = 0;
 
 	virtual std::shared_ptr<IDisposable> CreateVertexBuffer(const std::vector<Vertex>& vertices) = 0;
 	virtual std::shared_ptr<IDisposable> CreateIndexBuffer(const std::vector<uint32_t>& indices) = 0;

@@ -42,19 +42,6 @@ bool DX::Window::Initialize()
 	}
 }
 
-void DX::Window::Run()
-{
-	auto msg = MSG();
-	
-	while (::PeekMessageW(&msg, reinterpret_cast<HWND>(m_handle), NULL, NULL, PM_REMOVE))
-	{
-		::TranslateMessage(&msg);
-		::DispatchMessageW(&msg);
-	}
-
-	::Sleep(1);
-}
-
 void DX::Window::Setup(IGraphics* graphics)
 {
 	auto rect = GetClientWindowRect(reinterpret_cast<HWND>(m_handle));
@@ -63,7 +50,7 @@ void DX::Window::Setup(IGraphics* graphics)
 
 	try
 	{
-		Graphics = graphics;
+		m_graphics = graphics;
 	}
 	catch (const std::exception&)
 	{
@@ -71,29 +58,55 @@ void DX::Window::Setup(IGraphics* graphics)
 	}
 }
 
-void DX::Window::Update()
+void DX::Window::Update(float deltaTime)
 {
 	using namespace std::chrono;
 
-	if (!Graphics) return;
+	if (!m_graphics) return;
 
-	auto current_frame = high_resolution_clock::now();
-	auto elapsed = duration<float, seconds::period>(current_frame - m_lastFrameTime).count();
-
-	Graphics->Update(elapsed);
-
-	m_lastFrameTime = current_frame;
+	try
+	{
+		m_graphics->Update(deltaTime);
+	}
+	catch (const std::exception&)
+	{
+		throw;
+	}
 }
 
-void DX::Window::Render()
+void DX::Window::Render(float deltaTime)
 {
-	if (!Graphics) return;
-	Graphics->Render();
+	if (!m_graphics) return;
+	
+	try
+	{
+		m_graphics->Render();
+	}
+	catch (const std::exception&)
+	{
+		throw;
+	}
 }
 
 void DX::Window::Dispose()
 {
 	m_isInitialized = false;
+}
+
+bool DX::Window::IsRunning(float deltaTime) noexcept
+{
+	m_deltaTime = deltaTime;
+	auto msg = MSG();
+
+	while (::PeekMessageW(&msg, reinterpret_cast<HWND>(m_handle), NULL, NULL, PM_REMOVE))
+	{
+		::TranslateMessage(&msg);
+		::DispatchMessageW(&msg);
+	}
+
+	::Sleep(1);
+
+	return m_isInitialized;
 }
 
 LRESULT DX::Window::WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
@@ -105,8 +118,8 @@ LRESULT DX::Window::WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 		case WM_PAINT:
 		{
 			auto window = reinterpret_cast<Window*>(::GetWindowLongPtrW(hwnd, GWLP_USERDATA));
-			window->Update();
-			window->Render();
+			window->Update(window->m_deltaTime);
+			window->Render(window->m_deltaTime);
 			break;
 		}
 		case WM_CREATE:

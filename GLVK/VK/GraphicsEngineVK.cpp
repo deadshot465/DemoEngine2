@@ -11,6 +11,13 @@
 #include <cmath>
 #include <cstring>
 
+#if defined(max)
+#undef max
+#endif
+#if defined(min)
+#undef min
+#endif
+
 GLVK::VK::GraphicsEngine::GraphicsEngine(GLFWwindow* window, int width, int height, IResourceManager* resourceManager)
 	: IGraphics(window, width, height, resourceManager)
 {
@@ -123,6 +130,45 @@ void GLVK::VK::GraphicsEngine::Render()
     m_presentQueue.presentKHR(present_info);
     m_logicalDevice.waitForFences(m_fences[m_currentImageIndex], VK_TRUE, std::numeric_limits<uint64_t>::max());
     m_currentImageIndex = (m_currentImageIndex + 1) % m_images.size();
+}
+
+void GLVK::VK::GraphicsEngine::BeginDraw()
+{
+	static const auto clear_color = vk::ClearColorValue(std::array<float, 4>{ 1.0f, 1.0f, 1.0f, 1.0f });
+	static const auto clear_depth = vk::ClearDepthStencilValue(1.0f, 0);
+	static const vk::ClearValue clear_values[] = { vk::ClearValue(clear_color), vk::ClearValue(clear_depth) };
+	auto renderpass_info = vk::RenderPassBeginInfo();
+	renderpass_info.renderPass = m_pipeline->GetRenderPass();
+	renderpass_info.renderArea.extent = m_extent;
+	renderpass_info.renderArea.offset = vk::Offset2D();
+	renderpass_info.clearValueCount = _countof(clear_values);
+	renderpass_info.pClearValues = clear_values;
+	auto begin_info = vk::CommandBufferBeginInfo();
+	begin_info.pInheritanceInfo = nullptr;
+
+	auto scissor = vk::Rect2D();
+	scissor.extent = m_extent;
+
+	for (auto i = 0; i < m_commandBuffers.size(); ++i)
+	{
+		renderpass_info.framebuffer = m_framebuffers[i];
+		m_commandBuffers[i].begin(begin_info);
+		m_commandBuffers[i].beginRenderPass(renderpass_info, vk::SubpassContents::eInline);
+
+		m_commandBuffers[i].setViewport(0, { vk::Viewport(0.0f, 0.0f, static_cast<float>(m_extent.width), static_cast<float>(m_extent.height), 0.0f, 1.0f) });
+		m_commandBuffers[i].setScissor(0, { scissor });
+		/*m_commandBuffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_pipeline->GetPipelineLayout(), 0, { m_descriptorSet }, { 0 });*/
+		m_commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, m_pipeline->GetPipeline(BlendMode::None));
+	}
+}
+
+void GLVK::VK::GraphicsEngine::EndDraw()
+{
+	for (auto i = 0; i < m_commandBuffers.size(); ++i)
+	{
+		m_commandBuffers[i].endRenderPass();
+		m_commandBuffers[i].end();
+	}
 }
 
 std::shared_ptr<IDisposable> GLVK::VK::GraphicsEngine::CreateVertexBuffer(const std::vector<Vertex>& vertices)
@@ -334,7 +380,7 @@ void GLVK::VK::GraphicsEngine::Initialize()
 		CreateFramebuffers();
 		CreateCommandBuffers();
 		CreateSynchronizationObjects();
-		BeginRenderPass();
+		//BeginRenderPass();
 	}
 	catch (const std::exception&)
 	{
@@ -963,40 +1009,40 @@ void GLVK::VK::GraphicsEngine::BeginRenderPass()
 		/*m_commandBuffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_pipeline->GetPipelineLayout(), 0, { m_descriptorSet }, { 0 });*/
         m_commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, m_pipeline->GetPipeline(BlendMode::None));
 
-		for (const auto& mesh : m_meshes)
-		{
-			/*if (!mesh->Textures.empty())
-			{
-				m_pushConstant.TextureIndex = mesh->TextureIndices[0];
-			}*/
+		//for (const auto& mesh : m_meshes)
+		//{
+		//	/*if (!mesh->Textures.empty())
+		//	{
+		//		m_pushConstant.TextureIndex = mesh->TextureIndices[0];
+		//	}*/
 
-			m_pushConstant.ObjectColor = mesh->Color;
-			m_commandBuffers[i].pushConstants<PushConstant>(m_pipeline->GetPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, { m_pushConstant });
-			m_commandBuffers[i].bindVertexBuffers(0, mesh->VertexBuffer->GetBuffer(), { 0 });
-			m_commandBuffers[i].bindIndexBuffer(mesh->IndexBuffer->GetBuffer(), 0, vk::IndexType::eUint32);
-			m_commandBuffers[i].drawIndexed(static_cast<uint32_t>(mesh->Indices.size()), 1, 0, 0, 0);
-		}
+		//	m_pushConstant.ObjectColor = mesh->Color;
+		//	m_commandBuffers[i].pushConstants<PushConstant>(m_pipeline->GetPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, { m_pushConstant });
+		//	m_commandBuffers[i].bindVertexBuffers(0, mesh->VertexBuffer->GetBuffer(), { 0 });
+		//	m_commandBuffers[i].bindIndexBuffer(mesh->IndexBuffer->GetBuffer(), 0, vk::IndexType::eUint32);
+		//	m_commandBuffers[i].drawIndexed(static_cast<uint32_t>(mesh->Indices.size()), 1, 0, 0, 0);
+		//}
 
-		for (auto j = 0; j < m_models.size(); ++j)
-		{
-			uint32_t dynamic_offset = m_dynamicBufferObject.Object.ModelIndices[j] * static_cast<uint32_t>(m_dynamicBufferObject.DynamicAlignment);
+		//for (auto j = 0; j < m_models.size(); ++j)
+		//{
+		//	uint32_t dynamic_offset = m_dynamicBufferObject.Object.ModelIndices[j] * static_cast<uint32_t>(m_dynamicBufferObject.DynamicAlignment);
 
-			m_commandBuffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_pipeline->GetPipelineLayout(), 0, { m_descriptorSet }, { dynamic_offset });
+		//	m_commandBuffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_pipeline->GetPipelineLayout(), 0, { m_descriptorSet }, { dynamic_offset });
 
-			for (const auto& mesh : m_models[j]->Meshes)
-			{
-				/*if (!mesh.Textures.empty())
-				{
-					m_pushConstant.TextureIndex = mesh.TextureIndices[0];
-				}*/
+		//	for (const auto& mesh : m_models[j]->Meshes)
+		//	{
+		//		/*if (!mesh.Textures.empty())
+		//		{
+		//			m_pushConstant.TextureIndex = mesh.TextureIndices[0];
+		//		}*/
 
-				m_pushConstant.ObjectColor = m_models[j]->Color;
-				m_commandBuffers[i].pushConstants<PushConstant>(m_pipeline->GetPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, { m_pushConstant });
-				m_commandBuffers[i].bindVertexBuffers(0, mesh.VertexBuffer->GetBuffer(), { 0 });
-				m_commandBuffers[i].bindIndexBuffer(mesh.IndexBuffer->GetBuffer(), 0, vk::IndexType::eUint32);
-				m_commandBuffers[i].drawIndexed(static_cast<uint32_t>(mesh.Indices.size()), 1, 0, 0, 0);
-			}
-		}
+		//		m_pushConstant.ObjectColor = m_models[j]->Color;
+		//		m_commandBuffers[i].pushConstants<PushConstant>(m_pipeline->GetPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, { m_pushConstant });
+		//		m_commandBuffers[i].bindVertexBuffers(0, mesh.VertexBuffer->GetBuffer(), { 0 });
+		//		m_commandBuffers[i].bindIndexBuffer(mesh.IndexBuffer->GetBuffer(), 0, vk::IndexType::eUint32);
+		//		m_commandBuffers[i].drawIndexed(static_cast<uint32_t>(mesh.Indices.size()), 1, 0, 0, 0);
+		//	}
+		//}
 
         m_commandBuffers[i].endRenderPass();
         m_commandBuffers[i].end();
