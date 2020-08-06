@@ -24,7 +24,7 @@ struct MVP
 	alignas(16) glm::mat4 Projection;
 };
 
-struct DynamicBufferObject
+struct DynamicBufferModels
 {
 	std::vector<uint32_t> ModelIndices;
 	std::vector<glm::mat4> Models;

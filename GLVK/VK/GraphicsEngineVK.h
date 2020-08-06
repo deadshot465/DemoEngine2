@@ -153,7 +153,8 @@ namespace GLVK
 			std::unique_ptr<Buffer> m_mvpBuffer = nullptr;
 			//std::vector<std::unique_ptr<Buffer>> m_directionalLightBuffers;
 			std::unique_ptr<Buffer> m_directionalLightBuffer = nullptr;
-			std::unique_ptr<Buffer> m_dynamicUniformBuffer = nullptr;
+			std::unique_ptr<Buffer> m_dynamicMeshUniformBuffer = nullptr;
+			std::unique_ptr<Buffer> m_dynamicModelUniformBuffer = nullptr;
 			std::unique_ptr<Image> m_depthImage = nullptr;
 			std::unique_ptr<Image> m_msaaImage = nullptr;
 			std::unique_ptr<Pipeline> m_pipeline = nullptr;
@@ -167,7 +168,8 @@ namespace GLVK
 			PushConstant m_pushConstant = {};
 			struct
 			{
-				DynamicBufferObject Object;
+				DynamicBufferModels Models;
+				DynamicBufferModels Meshes;
 				vk::DeviceSize MinAlignment;
 				vk::DeviceSize DynamicAlignment;
 			} m_dynamicBufferObject;
