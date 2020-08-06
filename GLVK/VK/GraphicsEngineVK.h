@@ -136,7 +136,6 @@ namespace GLVK
 			vk::CommandPool m_commandPool = nullptr;
 			vk::DescriptorSetLayout m_descriptorSetLayout = nullptr;
 			vk::DescriptorPool m_descriptorPool = nullptr;
-			//std::vector<vk::DescriptorSet> m_descriptorSets;
 			vk::DescriptorSet m_descriptorSet = nullptr;
 			std::vector<vk::Framebuffer> m_framebuffers;
 			std::vector<vk::CommandBuffer> m_commandBuffers;
