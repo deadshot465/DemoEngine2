@@ -106,7 +106,6 @@ namespace GLVK
 			void CreateFramebuffers();
 			void CreateCommandBuffers();
 			void CreateSynchronizationObjects();
-			void BeginRenderPass();
 
 			inline static const std::vector<const char*> m_enabledLayerNames = {
 				"VK_LAYER_KHRONOS_validation"
