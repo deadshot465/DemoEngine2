@@ -212,5 +212,6 @@
     <None Include=".gitignore" />
     <None Include="GLVK\VK\Shaders\basicShader.frag" />
     <None Include="GLVK\VK\Shaders\basicShader.vert" />
+    <None Include="GLVK\VK\Shaders\basicShader_mesh.vert" />
   </ItemGroup>
 </Project>

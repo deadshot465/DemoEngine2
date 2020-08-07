@@ -7,17 +7,22 @@
 GLVK::VK::Pipeline::Pipeline(const vk::Device& device)
 	: m_logicalDevice(device)
 {
-	
 }
 
 GLVK::VK::Pipeline::~Pipeline()
 {
 	for (auto& pipeline : m_graphicsPipelines)
 	{
-		m_logicalDevice.destroyPipeline(pipeline);
+		for (auto& _pipeline : pipeline.second)
+		{
+			m_logicalDevice.destroyPipeline(_pipeline);
+		}
 	}
 
-	m_logicalDevice.destroyPipelineLayout(m_pipelineLayout);
+	for (auto& layout : m_pipelineLayouts)
+	{
+		m_logicalDevice.destroyPipelineLayout(layout.second);
+	}
 
 	if (m_ownedRenderPass)
 		m_logicalDevice.destroyRenderPass(m_renderPass);
@@ -181,7 +186,7 @@ void GLVK::VK::Pipeline::CreateGraphicPipeline(const vk::Device& device, const v
 	}
 }
 
-void GLVK::VK::Pipeline::CreateGraphicPipelines(const vk::DescriptorSetLayout& descriptorSetLayout, const vk::SampleCountFlagBits& sampleCounts, const std::vector<vk::PipelineShaderStageCreateInfo>& shaderStageInfos, const vk::PipelineCache& pipelineCache)
+void GLVK::VK::Pipeline::CreateGraphicPipelines(const vk::DescriptorSetLayout& descriptorSetLayout, const vk::SampleCountFlagBits& sampleCounts, const std::vector<vk::PipelineShaderStageCreateInfo>& shaderStageInfos, const vk::PipelineCache& pipelineCache, const ShaderType& shaderType)
 {
 	static constexpr auto BLEND_MODE_COUNT = static_cast<size_t>(BlendMode::End);
 	vk::PipelineColorBlendAttachmentState blend_modes[BLEND_MODE_COUNT] = {};
@@ -196,7 +201,7 @@ void GLVK::VK::Pipeline::CreateGraphicPipelines(const vk::DescriptorSetLayout& d
 	layout_info.pSetLayouts = &descriptorSetLayout;
 	layout_info.pushConstantRangeCount = 1;
 	layout_info.setLayoutCount = 1;
-	m_pipelineLayout = m_logicalDevice.createPipelineLayout(layout_info);
+	m_pipelineLayouts.emplace(std::make_pair(shaderType, m_logicalDevice.createPipelineLayout(layout_info)));
 
 	vk::BlendOp alpha_blend_op[BLEND_MODE_COUNT] = {
 		vk::BlendOp::eAdd, vk::BlendOp::eAdd, vk::BlendOp::eAdd,
@@ -252,7 +257,13 @@ void GLVK::VK::Pipeline::CreateGraphicPipelines(const vk::DescriptorSetLayout& d
 		vk::BlendFactor::eOne, vk::BlendFactor::eOne, vk::BlendFactor::eSrcAlpha
 	};
 
-	m_graphicsPipelines.resize(BLEND_MODE_COUNT);
+	auto iter = m_graphicsPipelines.emplace(std::make_pair(shaderType, std::vector<vk::Pipeline>()));
+	if (!iter.second)
+	{
+		::ThrowIfFailed("Failed to insert into pipeline map.");
+	}
+	auto& pipeline_array = iter.first->second;
+	pipeline_array.resize(BLEND_MODE_COUNT);
 	std::future<void> worker_threads[BLEND_MODE_COUNT];
 
 	for (size_t i = 0; i < BLEND_MODE_COUNT; ++i)
@@ -267,7 +278,7 @@ void GLVK::VK::Pipeline::CreateGraphicPipelines(const vk::DescriptorSetLayout& d
 		color_attachment.srcAlphaBlendFactor = src_alpha_blend_factor[i];
 		color_attachment.srcColorBlendFactor = src_color_blend_factor[i];
 
-		worker_threads[i] = std::async(std::launch::async, &Pipeline::CreateGraphicPipeline, this, m_logicalDevice, color_attachment, sampleCounts, shaderStageInfos, m_pipelineLayout, pipelineCache, i, m_renderPass, &m_graphicsPipelines[i]);
+		worker_threads[i] = std::async(std::launch::async, &Pipeline::CreateGraphicPipeline, this, m_logicalDevice, color_attachment, sampleCounts, shaderStageInfos, m_pipelineLayouts.at(shaderType), pipelineCache, i, m_renderPass, &pipeline_array[i]);
 	}
 
 	for (auto& thread : worker_threads)

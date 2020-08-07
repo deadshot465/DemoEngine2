@@ -19,7 +19,7 @@
 #endif
 
 GLVK::VK::GraphicsEngine::GraphicsEngine(GLFWwindow* window, int width, int height, IResourceManager* resourceManager)
-	: IGraphics(window, width, height, resourceManager)
+	: IGraphics(window, width, height, resourceManager, true)
 {
 	try
 	{
@@ -27,17 +27,18 @@ GLVK::VK::GraphicsEngine::GraphicsEngine(GLFWwindow* window, int width, int heig
 		SetupDebug();
 		CreateSurface();
 		GetPhysicalDevice();
+
+		m_swapchainDetails = GetSwapchainDetails(m_physicalDevice, m_surface);
+		m_surfaceFormat = GetSurfaceFormat(m_swapchainDetails.Formats);
+		m_extent = GetExtent(m_swapchainDetails.SurfaceCapabilities, reinterpret_cast<GLFWwindow*>(m_handle));
+		m_format = m_surfaceFormat.format;
+
 		CreateLogicalDevice();
 		LoadShader();
 
 		auto pool_info = vk::CommandPoolCreateInfo();
 		pool_info.queueFamilyIndex = m_queueIndices.GraphicsQueue.value();
 		m_commandPool = m_logicalDevice.createCommandPool(pool_info);
-
-		m_swapchainDetails = GetSwapchainDetails(m_physicalDevice, m_surface);
-		m_surfaceFormat = GetSurfaceFormat(m_swapchainDetails.Formats);
-		m_extent = GetExtent(m_swapchainDetails.SurfaceCapabilities, reinterpret_cast<GLFWwindow*>(m_handle));
-		m_format = m_surfaceFormat.format;
 	}
 	catch (const std::exception&)
 	{
@@ -48,12 +49,12 @@ GLVK::VK::GraphicsEngine::GraphicsEngine(GLFWwindow* window, int width, int heig
 GLVK::VK::GraphicsEngine::~GraphicsEngine()
 {
 	Dispose();
-	ReleaseAlignedMemory(m_dynamicBufferObject.Object.Buffer);
-	for (auto& mesh : m_meshes)
-		mesh.reset();
+	ReleaseAlignedMemory(m_dynamicBufferObject.Meshes.Buffer);
+	ReleaseAlignedMemory(m_dynamicBufferObject.Models.Buffer);
 	m_logicalDevice.destroyDescriptorSetLayout(m_descriptorSetLayout);
 	m_logicalDevice.destroyCommandPool(m_commandPool);
 	if (m_intermediateBuffer) m_intermediateBuffer.reset();
+	m_vertexShaderMesh.reset();
 	m_vertexShader.reset();
 	m_fragmentShader.reset();
 	m_logicalDevice.destroy();
@@ -81,22 +82,40 @@ void GLVK::VK::GraphicsEngine::Update(float deltaTime)
 	auto mapped = m_mvpBuffer->Map(sizeof(MVP));
     memcpy(mapped, &m_mvp, sizeof(MVP));
 
-	for (auto i = 0; i < m_dynamicBufferObject.Object.Models.size(); ++i)
+	for (auto i = 0; i < m_dynamicBufferObject.Meshes.Models.size(); ++i)
+	{
+		auto& mesh = m_meshes[i];
+		mesh->RotationX += glm::radians(duration_between / 750.0f);
+		mesh->RotationY += glm::radians(duration_between / 750.0f);
+		mesh->RotationZ += glm::radians(duration_between / 750.0f);
+
+		auto& world = m_dynamicBufferObject.Meshes.Models[m_dynamicBufferObject.Meshes.ModelIndices[i]];
+		world = mesh->GetWorldMatrix();
+
+		auto ptr = reinterpret_cast<glm::mat4*>(reinterpret_cast<uint64_t>(m_dynamicBufferObject.Meshes.Buffer) + (m_dynamicBufferObject.DynamicAlignment * i));
+
+		*ptr = world;
+	}
+
+	for (auto i = 0; i < m_dynamicBufferObject.Models.Models.size(); ++i)
 	{
 		auto& model = m_models[i];
 		model->RotationX += glm::radians(duration_between / 500.0f);
 		model->RotationY += glm::radians(duration_between / 500.0f);
 		model->RotationZ += glm::radians(duration_between / 500.0f);
-		auto& world = m_dynamicBufferObject.Object.Models[m_dynamicBufferObject.Object.ModelIndices[i]];
+		auto& world = m_dynamicBufferObject.Models.Models[m_dynamicBufferObject.Models.ModelIndices[i]];
 		world = model->GetWorldMatrix();
 
-		auto ptr = reinterpret_cast<glm::mat4*>(reinterpret_cast<uint64_t>(m_dynamicBufferObject.Object.Buffer) + (m_dynamicBufferObject.DynamicAlignment * i));
+		auto ptr = reinterpret_cast<glm::mat4*>(reinterpret_cast<uint64_t>(m_dynamicBufferObject.Models.Buffer) + (m_dynamicBufferObject.DynamicAlignment * i));
 
 		*ptr = world;
 	}
 
-	mapped = m_dynamicUniformBuffer->Map(VK_WHOLE_SIZE);
-	memcpy(mapped, m_dynamicBufferObject.Object.Buffer, m_dynamicUniformBuffer->GetBufferSize());
+	mapped = m_dynamicMeshUniformBuffer->Map(VK_WHOLE_SIZE);
+	memcpy(mapped, m_dynamicBufferObject.Meshes.Buffer, m_dynamicMeshUniformBuffer->GetBufferSize());
+
+	mapped = m_dynamicModelUniformBuffer->Map(VK_WHOLE_SIZE);
+	memcpy(mapped, m_dynamicBufferObject.Models.Buffer, m_dynamicModelUniformBuffer->GetBufferSize());
 }
 
 void GLVK::VK::GraphicsEngine::Render()
@@ -158,7 +177,7 @@ void GLVK::VK::GraphicsEngine::BeginDraw()
 		m_commandBuffers[i].setViewport(0, { vk::Viewport(0.0f, 0.0f, static_cast<float>(m_extent.width), static_cast<float>(m_extent.height), 0.0f, 1.0f) });
 		m_commandBuffers[i].setScissor(0, { scissor });
 		/*m_commandBuffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_pipeline->GetPipelineLayout(), 0, { m_descriptorSet }, { 0 });*/
-		m_commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, m_pipeline->GetPipeline(BlendMode::None));
+		m_commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, m_pipeline->GetPipeline(BlendMode::None, ShaderType::BasicShader));
 	}
 }
 
@@ -256,9 +275,31 @@ std::tuple<IDisposable*, unsigned int> GLVK::VK::GraphicsEngine::LoadModel(std::
 		mesh.VertexBuffer = std::dynamic_pointer_cast<Buffer>(CreateVertexBuffer(mesh.Vertices));
 		mesh.IndexBuffer = std::dynamic_pointer_cast<Buffer>(CreateIndexBuffer(mesh.Indices));
 	}
-	size_t index = m_dynamicBufferObject.Object.ModelIndices.emplace_back(static_cast<uint32_t>(m_dynamicBufferObject.Object.ModelIndices.size()));
-	m_dynamicBufferObject.Object.Models.emplace_back(ptr->GetWorldMatrix());
+	size_t index = m_dynamicBufferObject.Models.ModelIndices.emplace_back(static_cast<uint32_t>(m_dynamicBufferObject.Models.ModelIndices.size()));
+	m_dynamicBufferObject.Models.Models.emplace_back(ptr->GetWorldMatrix());
 	return std::make_tuple(ptr, static_cast<uint32_t>(index));
+}
+
+std::tuple<IDisposable*, unsigned int> GLVK::VK::GraphicsEngine::CreateMesh(const PrimitiveType& primitiveType, const Vector3& position, const Vector3& scale, const Vector3& rotation, const Vector4& color)
+{
+	auto mesh = std::make_unique<MESH>();
+	auto& ptr = m_meshes.emplace_back(m_resourceManager->AddResource(mesh));
+	ptr->Vertices = m_shapeData.at(primitiveType).Vertices;
+	ptr->Indices = m_shapeData.at(primitiveType).Indices;
+	ptr->VertexBuffer = std::dynamic_pointer_cast<Buffer>(CreateVertexBuffer(ptr->Vertices));
+	ptr->IndexBuffer = std::dynamic_pointer_cast<Buffer>(CreateIndexBuffer(ptr->Indices));
+	ptr->Position = position;
+	ptr->ScaleX = scale.x;
+	ptr->ScaleY = scale.y;
+	ptr->ScaleZ = scale.z;
+	ptr->RotationX = rotation.x;
+	ptr->RotationY = rotation.y;
+	ptr->RotationZ = rotation.z;
+	ptr->Color = color;
+
+	size_t model_index = m_dynamicBufferObject.Meshes.ModelIndices.emplace_back(m_dynamicBufferObject.Meshes.ModelIndices.size());
+	m_dynamicBufferObject.Meshes.Models.emplace_back(ptr->GetWorldMatrix());
+	return std::make_tuple(ptr, static_cast<uint32_t>(model_index));
 }
 
 std::vector<const char*> GLVK::VK::GraphicsEngine::GetRequiredExtensions(bool debug) noexcept
@@ -377,10 +418,13 @@ void GLVK::VK::GraphicsEngine::Initialize()
 			m_vertexShader->GetShaderStageInfo(),
 			m_fragmentShader->GetShaderStageInfo()
 			});
+		m_pipeline->CreateGraphicPipelines(m_descriptorSetLayout, m_msaaSampleCount, {
+			m_vertexShaderMesh->GetShaderStageInfo(),
+			m_fragmentShader->GetShaderStageInfo()
+			}, nullptr, ShaderType::BasicShaderForMesh);
 		CreateFramebuffers();
 		CreateCommandBuffers();
 		CreateSynchronizationObjects();
-		//BeginRenderPass();
 	}
 	catch (const std::exception&)
 	{
@@ -394,7 +438,8 @@ void GLVK::VK::GraphicsEngine::Dispose()
     m_logicalDevice.freeCommandBuffers(m_commandPool, m_commandBuffers);
 	m_pipeline.reset();
 	
-	m_dynamicUniformBuffer.reset();
+	m_dynamicMeshUniformBuffer.reset();
+	m_dynamicModelUniformBuffer.reset();
 	m_mvpBuffer.reset();
 	m_directionalLightBuffer.reset();
 
@@ -593,6 +638,7 @@ void GLVK::VK::GraphicsEngine::CreateSwapchain()
 void GLVK::VK::GraphicsEngine::LoadShader()
 {
 	m_vertexShader = std::make_unique<Shader>(vk::ShaderStageFlagBits::eVertex, "GLVK/VK/Shaders/vert.spv", m_logicalDevice);
+	m_vertexShaderMesh = std::make_unique<Shader>(vk::ShaderStageFlagBits::eVertex, "GLVK/VK/Shaders/basicShader_mesh.spv", m_logicalDevice);
 	m_fragmentShader = std::make_unique<Shader>(vk::ShaderStageFlagBits::eFragment, "GLVK/VK/Shaders/frag.spv", m_logicalDevice);
 }
 
@@ -617,6 +663,12 @@ void GLVK::VK::GraphicsEngine::CreateDescriptorLayout()
 	bindings[2].pImmutableSamplers = nullptr;
 	bindings[2].stageFlags = vk::ShaderStageFlagBits::eVertex;
 
+	bindings[3].binding = 3;
+	bindings[3].descriptorCount = 1;
+	bindings[3].descriptorType = vk::DescriptorType::eUniformBufferDynamic;
+	bindings[3].pImmutableSamplers = nullptr;
+	bindings[3].stageFlags = vk::ShaderStageFlagBits::eVertex;
+
 	/*bindings[2].binding = 3;
 	bindings[2].descriptorCount = static_cast<uint32_t>(m_textures.size());
 	bindings[2].descriptorType = vk::DescriptorType::eCombinedImageSampler;
@@ -638,6 +690,8 @@ void GLVK::VK::GraphicsEngine::CreateDescriptorSets()
 	pool_sizes[1].type = vk::DescriptorType::eUniformBuffer;;
 	pool_sizes[2].descriptorCount = 1;
 	pool_sizes[2].type = vk::DescriptorType::eUniformBufferDynamic;
+	pool_sizes[3].descriptorCount = 1;
+	pool_sizes[3].type = vk::DescriptorType::eUniformBufferDynamic;
 	/*pool_sizes[2].descriptorCount = m_textures.empty() ? 1 : static_cast<uint32_t>(m_textures.size());
 	pool_sizes[2].type = vk::DescriptorType::eCombinedImageSampler;*/
 
@@ -675,10 +729,15 @@ void GLVK::VK::GraphicsEngine::CreateDescriptorSets()
 	directional_light_buffer_info.offset = 0;
 	directional_light_buffer_info.range = sizeof(DirectionalLight);
 
-	auto dynamic_buffer_info = vk::DescriptorBufferInfo();
-	dynamic_buffer_info.buffer = m_dynamicUniformBuffer->GetBuffer();
-	dynamic_buffer_info.offset = 0;
-	dynamic_buffer_info.range = VK_WHOLE_SIZE;
+	auto dynamic_model_buffer_info = vk::DescriptorBufferInfo();
+	dynamic_model_buffer_info.buffer = m_dynamicModelUniformBuffer->GetBuffer();
+	dynamic_model_buffer_info.offset = 0;
+	dynamic_model_buffer_info.range = VK_WHOLE_SIZE;
+
+	auto dynamic_mesh_buffer_info = vk::DescriptorBufferInfo();
+	dynamic_mesh_buffer_info.buffer = m_dynamicMeshUniformBuffer->GetBuffer();
+	dynamic_mesh_buffer_info.offset = 0;
+	dynamic_mesh_buffer_info.range = VK_WHOLE_SIZE;
 
 	auto write_descriptor_count = DESCRIPTOR_TYPE_COUNT;
 	auto write_descriptors = std::vector<vk::WriteDescriptorSet>(write_descriptor_count);
@@ -705,9 +764,18 @@ void GLVK::VK::GraphicsEngine::CreateDescriptorSets()
 	write_descriptors[2].dstArrayElement = 0;
 	write_descriptors[2].dstBinding = 2;
 	write_descriptors[2].dstSet = m_descriptorSet;
-	write_descriptors[2].pBufferInfo = &dynamic_buffer_info;
+	write_descriptors[2].pBufferInfo = &dynamic_model_buffer_info;
 	write_descriptors[2].pImageInfo = nullptr;
 	write_descriptors[2].pTexelBufferView = nullptr;
+
+	write_descriptors[3].descriptorCount = 1;
+	write_descriptors[3].descriptorType = vk::DescriptorType::eUniformBufferDynamic;
+	write_descriptors[3].dstArrayElement = 0;
+	write_descriptors[3].dstBinding = 3;
+	write_descriptors[3].dstSet = m_descriptorSet;
+	write_descriptors[3].pBufferInfo = &dynamic_mesh_buffer_info;
+	write_descriptors[3].pImageInfo = nullptr;
+	write_descriptors[3].pTexelBufferView = nullptr;
 
 	m_logicalDevice.updateDescriptorSets(write_descriptors, {});
 
@@ -800,16 +868,6 @@ void GLVK::VK::GraphicsEngine::CreateUniformBuffers()
 	m_mvp.View = glm::lookAt(glm::vec3(0.0f, 0.0f, -10.0f), glm::vec3(0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
 	m_mvp.Projection = glm::perspective(glm::radians(45.0f), static_cast<float>(m_width) / static_cast<float>(m_height), 0.1f, 100.0f);
 
-	/*m_mvpBuffers.resize(m_images.size());
-	for (auto& buffer : m_mvpBuffers)
-	{
-		buffer = std::make_unique<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eUniformBuffer, mvp_size);
-		auto mvp_memory = buffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-		auto mapped = m_logicalDevice.mapMemory(mvp_memory, 0, mvp_size);
-		memcpy(mapped, &m_mvp, mvp_size);
-		m_logicalDevice.unmapMemory(mvp_memory);
-	}*/
-
 	m_mvpBuffer = std::make_unique<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eUniformBuffer, mvp_size);
 	auto mvp_memory = m_mvpBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
 	auto mapped = m_mvpBuffer->Map(mvp_size);
@@ -819,16 +877,6 @@ void GLVK::VK::GraphicsEngine::CreateUniformBuffers()
 	m_directionalLight.SpecularIntensity = 0.5f;
 	m_directionalLight.Diffuse = glm::vec4(1.0f);
 	m_directionalLight.LightDirection = glm::vec3(0.0f, -5.0f, 0.0f);
-	
-	/*m_directionalLightBuffers.resize(m_images.size());
-	for (auto& buffer : m_directionalLightBuffers)
-	{
-		buffer = std::make_unique<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eUniformBuffer, directional_light_size);
-		auto directional_light_memory = buffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-		auto mapped = m_logicalDevice.mapMemory(directional_light_memory, 0, directional_light_size);
-		memcpy(mapped, &m_directionalLight, directional_light_size);
-		m_logicalDevice.unmapMemory(directional_light_memory);
-	}*/
 
 	m_directionalLightBuffer = std::make_unique<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eUniformBuffer, directional_light_size);
 	auto directional_light_memory = m_directionalLightBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
@@ -844,21 +892,38 @@ void GLVK::VK::GraphicsEngine::CreateUniformBuffers()
 		m_dynamicBufferObject.DynamicAlignment = (m_dynamicBufferObject.DynamicAlignment + m_dynamicBufferObject.MinAlignment - 1) & ~(m_dynamicBufferObject.MinAlignment - 1);
 	}
 
-	auto dbo_size = m_dynamicBufferObject.DynamicAlignment * m_dynamicBufferObject.Object.Models.size();
-	m_dynamicBufferObject.Object.Buffer = reinterpret_cast<glm::mat4*>(AllocateAlignedMemory(dbo_size, m_dynamicBufferObject.DynamicAlignment));
-	assert(m_dynamicBufferObject.Object.Buffer);
-	m_dynamicUniformBuffer = std::make_unique<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eUniformBuffer, dbo_size);
-	m_dynamicUniformBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible);
+	auto dbo_size = m_dynamicBufferObject.DynamicAlignment * m_dynamicBufferObject.Models.Models.size();
+	m_dynamicBufferObject.Models.Buffer = reinterpret_cast<glm::mat4*>(AllocateAlignedMemory(dbo_size, m_dynamicBufferObject.DynamicAlignment));
+	assert(m_dynamicBufferObject.Models.Buffer);
+	m_dynamicModelUniformBuffer = std::make_unique<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eUniformBuffer, dbo_size);
+	m_dynamicModelUniformBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible);
 
-	for (auto i = 0; i < m_dynamicBufferObject.Object.Models.size(); ++i)
+	for (auto i = 0; i < m_dynamicBufferObject.Models.Models.size(); ++i)
 	{
-		auto ptr = reinterpret_cast<glm::mat4*>(reinterpret_cast<uint64_t>(m_dynamicBufferObject.Object.Buffer) + (m_dynamicBufferObject.DynamicAlignment * i));
+		auto ptr = reinterpret_cast<glm::mat4*>(reinterpret_cast<uint64_t>(m_dynamicBufferObject.Models.Buffer) + (m_dynamicBufferObject.DynamicAlignment * i));
 
-		*ptr = m_dynamicBufferObject.Object.Models[m_dynamicBufferObject.Object.ModelIndices[i]];
+		*ptr = m_dynamicBufferObject.Models.Models[m_dynamicBufferObject.Models.ModelIndices[i]];
 	}
 
-	mapped = m_dynamicUniformBuffer->Map(VK_WHOLE_SIZE);
-	memcpy(mapped, m_dynamicBufferObject.Object.Buffer, m_dynamicUniformBuffer->GetBufferSize());
+	mapped = m_dynamicModelUniformBuffer->Map(VK_WHOLE_SIZE);
+	memcpy(mapped, m_dynamicBufferObject.Models.Buffer, m_dynamicModelUniformBuffer->GetBufferSize());
+
+	
+	dbo_size = m_dynamicBufferObject.DynamicAlignment * m_dynamicBufferObject.Meshes.Models.size();
+	m_dynamicBufferObject.Meshes.Buffer = reinterpret_cast<glm::mat4*>(AllocateAlignedMemory(dbo_size, m_dynamicBufferObject.DynamicAlignment));
+	assert(m_dynamicBufferObject.Meshes.Buffer);
+	m_dynamicMeshUniformBuffer = std::make_unique<Buffer>(m_logicalDevice, vk::BufferUsageFlagBits::eUniformBuffer, dbo_size);
+	m_dynamicMeshUniformBuffer->AllocateMemory(m_physicalDevice, vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible);
+
+	for (auto i = 0; i < m_dynamicBufferObject.Meshes.Models.size(); ++i)
+	{
+		auto ptr = reinterpret_cast<glm::mat4*>(reinterpret_cast<uint64_t>(m_dynamicBufferObject.Meshes.Buffer) + (m_dynamicBufferObject.DynamicAlignment * i));
+
+		*ptr = m_dynamicBufferObject.Meshes.Models[m_dynamicBufferObject.Meshes.ModelIndices[i]];
+	}
+
+	mapped = m_dynamicMeshUniformBuffer->Map(VK_WHOLE_SIZE);
+	memcpy(mapped, m_dynamicBufferObject.Meshes.Buffer, m_dynamicMeshUniformBuffer->GetBufferSize());
 }
 
 GLVK::VK::SwapchainDetails GLVK::VK::GraphicsEngine::GetSwapchainDetails(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface) {
@@ -910,6 +975,7 @@ GLVK::VK::GraphicsEngine::GetPresentMode(const std::vector<vk::PresentModeKHR> &
         else if (mode == vk::PresentModeKHR::eFifo)
             fifo_support = true;
     }
+
     return fifo_support ? vk::PresentModeKHR::eFifo : vk::PresentModeKHR::eImmediate;
 }
 
@@ -979,157 +1045,6 @@ void GLVK::VK::GraphicsEngine::CreateCommandBuffers()
     info.commandPool = m_commandPool;
     info.level = vk::CommandBufferLevel::ePrimary;
     m_commandBuffers = m_logicalDevice.allocateCommandBuffers(info);
-}
-
-void GLVK::VK::GraphicsEngine::BeginRenderPass()
-{
-    static const auto clear_color = vk::ClearColorValue(std::array<float, 4>{ 1.0f, 1.0f, 1.0f, 1.0f });
-    static const auto clear_depth = vk::ClearDepthStencilValue(1.0f, 0);
-    static const vk::ClearValue clear_values[] = { vk::ClearValue(clear_color), vk::ClearValue(clear_depth) };
-    auto renderpass_info = vk::RenderPassBeginInfo();
-    renderpass_info.renderPass = m_pipeline->GetRenderPass();
-    renderpass_info.renderArea.extent = m_extent;
-    renderpass_info.renderArea.offset = vk::Offset2D();
-    renderpass_info.clearValueCount = _countof(clear_values);
-    renderpass_info.pClearValues = clear_values;
-    auto begin_info = vk::CommandBufferBeginInfo();
-    begin_info.pInheritanceInfo = nullptr;
-
-    auto scissor = vk::Rect2D();
-    scissor.extent = m_extent;
-
-    for (auto i = 0; i < m_commandBuffers.size(); ++i)
-    {
-        renderpass_info.framebuffer = m_framebuffers[i];
-        m_commandBuffers[i].begin(begin_info);
-        m_commandBuffers[i].beginRenderPass(renderpass_info, vk::SubpassContents::eInline);
-
-		m_commandBuffers[i].setViewport(0, { vk::Viewport(0.0f, 0.0f, static_cast<float>(m_extent.width), static_cast<float>(m_extent.height), 0.0f, 1.0f) });
-        m_commandBuffers[i].setScissor(0, { scissor });
-		/*m_commandBuffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_pipeline->GetPipelineLayout(), 0, { m_descriptorSet }, { 0 });*/
-        m_commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, m_pipeline->GetPipeline(BlendMode::None));
-
-		//for (const auto& mesh : m_meshes)
-		//{
-		//	/*if (!mesh->Textures.empty())
-		//	{
-		//		m_pushConstant.TextureIndex = mesh->TextureIndices[0];
-		//	}*/
-
-		//	m_pushConstant.ObjectColor = mesh->Color;
-		//	m_commandBuffers[i].pushConstants<PushConstant>(m_pipeline->GetPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, { m_pushConstant });
-		//	m_commandBuffers[i].bindVertexBuffers(0, mesh->VertexBuffer->GetBuffer(), { 0 });
-		//	m_commandBuffers[i].bindIndexBuffer(mesh->IndexBuffer->GetBuffer(), 0, vk::IndexType::eUint32);
-		//	m_commandBuffers[i].drawIndexed(static_cast<uint32_t>(mesh->Indices.size()), 1, 0, 0, 0);
-		//}
-
-		//for (auto j = 0; j < m_models.size(); ++j)
-		//{
-		//	uint32_t dynamic_offset = m_dynamicBufferObject.Object.ModelIndices[j] * static_cast<uint32_t>(m_dynamicBufferObject.DynamicAlignment);
-
-		//	m_commandBuffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_pipeline->GetPipelineLayout(), 0, { m_descriptorSet }, { dynamic_offset });
-
-		//	for (const auto& mesh : m_models[j]->Meshes)
-		//	{
-		//		/*if (!mesh.Textures.empty())
-		//		{
-		//			m_pushConstant.TextureIndex = mesh.TextureIndices[0];
-		//		}*/
-
-		//		m_pushConstant.ObjectColor = m_models[j]->Color;
-		//		m_commandBuffers[i].pushConstants<PushConstant>(m_pipeline->GetPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, { m_pushConstant });
-		//		m_commandBuffers[i].bindVertexBuffers(0, mesh.VertexBuffer->GetBuffer(), { 0 });
-		//		m_commandBuffers[i].bindIndexBuffer(mesh.IndexBuffer->GetBuffer(), 0, vk::IndexType::eUint32);
-		//		m_commandBuffers[i].drawIndexed(static_cast<uint32_t>(mesh.Indices.size()), 1, 0, 0, 0);
-		//	}
-		//}
-
-        m_commandBuffers[i].endRenderPass();
-        m_commandBuffers[i].end();
-    }
-}
-
-void* GLVK::VK::GraphicsEngine::CreateCube(const Vector3& position, const Vector3& scale, const Vector3& rotation, const Vector4& color)
-{
-	static const std::vector<Vertex> cube_vertices =
-	{
-		// Front Face
-		{ { -0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } },
-		{ { -0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } },
-
-		// Top Face
-		{ { -0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ { -0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f, -0.5f,  0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f, -0.5f, -0.5f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } },
-
-		// Back Face
-		{ {  0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } },
-		{ { -0.5f, -0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } },
-		{ { -0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } },
-
-		// Bottom Face
-		{ { -0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ { -0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f,  0.5f, -0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f,  0.5f,  0.5f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
-
-		// Left Face
-		{ { -0.5f,  0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ { -0.5f, -0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ { -0.5f, -0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ { -0.5f,  0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-
-		// Right Face
-		{ {  0.5f,  0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f, -0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f, -0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-		{ {  0.5f,  0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-	};
-
-	static const std::vector<uint32_t> cube_indices = {
-		0, 1, 2, 2, 3, 0,
-		4, 5, 6, 6, 7, 4,
-
-		8, 9, 10, 10, 11, 8,
-		12, 13, 14, 14, 15, 12,
-
-		16, 17, 18, 18, 19, 16,
-		20, 21, 22, 22, 23, 20
-	};
-
-	auto& mesh = m_meshes.emplace_back(std::make_unique<MESH>());
-	mesh->Vertices = cube_vertices;
-	mesh->Indices = cube_indices;
-	mesh->VertexBuffer = std::dynamic_pointer_cast<Buffer>(CreateVertexBuffer(mesh->Vertices));
-	mesh->IndexBuffer = std::dynamic_pointer_cast<Buffer>(CreateIndexBuffer(mesh->Indices));
-	mesh->Position = position;
-	mesh->ScaleX = scale.x;
-	mesh->ScaleY = scale.y;
-	mesh->ScaleZ = scale.z;
-	mesh->RotationX = rotation.x;
-	mesh->RotationY = rotation.y;
-	mesh->RotationZ = rotation.z;
-	mesh->Color = color;
-	return mesh.get();
-}
-
-void* GLVK::VK::GraphicsEngine::CreateSphere()
-{
-	return nullptr;
-}
-
-void* GLVK::VK::GraphicsEngine::CreateCylinder()
-{
-	return nullptr;
-}
-
-void* GLVK::VK::GraphicsEngine::CreateCapsule()
-{
-	return nullptr;
 }
 
 void GLVK::VK::GraphicsEngine::CreateSynchronizationObjects()

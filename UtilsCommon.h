@@ -5,16 +5,28 @@
 #include <iterator>
 #include <random>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <tuple>
 #include <type_traits>
 #include <vector>
+#include "Structures/Vertex.h"
 #include "Structures/Matrix.h"
 
 enum class BlendMode
 {
 	None, Alpha, Add, Subtract, Replace, Multiply, Lighten, Darken, Screen, End
+};
+
+enum class ShaderType
+{
+	BasicShader, BasicShaderForMesh
+};
+
+enum class PrimitiveType
+{
+	Board, Cube, Rect, Sphere, Cylinder, Capsule
 };
 
 struct MVP
@@ -24,12 +36,23 @@ struct MVP
 	alignas(16) glm::mat4 Projection;
 };
 
-struct DynamicBufferObject
+struct DynamicBufferModels
 {
 	std::vector<uint32_t> ModelIndices;
 	std::vector<glm::mat4> Models;
 	glm::mat4* Buffer;
 };
+
+struct ShapeData
+{
+	std::vector<Vertex> Vertices;
+	std::vector<uint32_t> Indices;
+};
+
+inline void ThrowIfFailed(std::string_view errorMsg)
+{
+	throw std::runtime_error(errorMsg.data());
+}
 
 template <typename T = char>
 inline std::vector<T> ReadFromFile(std::string_view filePath, bool isBinary = true)
