@@ -12,6 +12,7 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+#include "../GLVK/VK/PipelineVK.h"
 #include "../GLVK/VK/UtilsVK.h"
 #include "../Interfaces/IDisposable.h"
 #include "../Interfaces/IGraphics.h"
@@ -128,9 +129,19 @@ public:
 	}
 
 	template <typename T>
-	auto Render(float deltaTime, T& commandBuffer) -> typename std::enable_if_t<std::is_same_v<T, vk::CommandBuffer>, void>
+	auto Render(float deltaTime, const T& commandBuffer, uint32_t dynamicOffset, const GLVK::VK::Pipeline* pipeline, const vk::DescriptorSet& descriptorSet, GLVK::VK::PushConstant& pushConstant) -> typename std::enable_if_t<std::is_same_v<T, vk::CommandBuffer>, void>
 	{
+		uint32_t dynamic_offset = ModelIndex * dynamicOffset;
 
+		commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline->GetPipeline(BlendMode::None, ShaderType::BasicShaderForMesh));
+
+		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetPipelineLayout(ShaderType::BasicShaderForMesh), 0, { descriptorSet }, { dynamic_offset, dynamic_offset });
+
+		pushConstant.ObjectColor = Color;
+		commandBuffer.pushConstants<GLVK::VK::PushConstant>(pipeline->GetPipelineLayout(ShaderType::BasicShaderForMesh), vk::ShaderStageFlagBits::eFragment, 0, { pushConstant });
+		commandBuffer.bindVertexBuffers(0, VertexBuffer->GetBuffer(), { 0 });
+		commandBuffer.bindIndexBuffer(IndexBuffer->GetBuffer(), 0, vk::IndexType::eUint32);
+		commandBuffer.drawIndexed(static_cast<uint32_t>(Indices.size()), 1, 0, 0, 0);
 	}
 
 	template <typename T>
@@ -154,6 +165,7 @@ public:
 	float RotationY = 0.0f;
 	float RotationZ = 0.0f;
 	Vector4 Color = Vector4();
+	uint32_t ModelIndex = 0;
 };
 
 template <Disposable Texture, Disposable Buffer>
@@ -289,16 +301,18 @@ public:
 	}
 
 	template <typename T>
-	auto Render(float deltaTime, const T& commandBuffer, uint32_t dynamicOffset, const vk::PipelineLayout& pipelineLayout, const vk::DescriptorSet& descriptorSet, GLVK::VK::PushConstant& pushConstant) -> typename std::enable_if_t<std::is_same_v<T, vk::CommandBuffer>, void>
+	auto Render(float deltaTime, const T& commandBuffer, uint32_t dynamicOffset, const GLVK::VK::Pipeline* pipeline, const vk::DescriptorSet& descriptorSet, GLVK::VK::PushConstant& pushConstant) -> typename std::enable_if_t<std::is_same_v<T, vk::CommandBuffer>, void>
 	{
 		uint32_t dynamic_offset = ModelIndex * dynamicOffset;
 
-		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, { descriptorSet }, { dynamic_offset });
+		commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline->GetPipeline(BlendMode::None, ShaderType::BasicShader));
+
+		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetPipelineLayout(ShaderType::BasicShader), 0, { descriptorSet }, { dynamic_offset, dynamic_offset });
 
 		for (const auto& mesh : Meshes)
 		{
 			pushConstant.ObjectColor = Color;
-			commandBuffer.pushConstants<GLVK::VK::PushConstant>(pipelineLayout, vk::ShaderStageFlagBits::eFragment, 0, { pushConstant });
+			commandBuffer.pushConstants<GLVK::VK::PushConstant>(pipeline->GetPipelineLayout(ShaderType::BasicShader), vk::ShaderStageFlagBits::eFragment, 0, { pushConstant });
 			commandBuffer.bindVertexBuffers(0, mesh.VertexBuffer->GetBuffer(), { 0 });
 			commandBuffer.bindIndexBuffer(mesh.IndexBuffer->GetBuffer(), 0, vk::IndexType::eUint32);
 			commandBuffer.drawIndexed(static_cast<uint32_t>(mesh.Indices.size()), 1, 0, 0, 0);

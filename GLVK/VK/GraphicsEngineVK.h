@@ -43,10 +43,7 @@ namespace GLVK
 			virtual std::shared_ptr<IDisposable> CreateIndexBuffer(const std::vector<uint32_t>& indices) override;
 			virtual std::tuple<IDisposable*, unsigned int> LoadTexture(std::string_view fileName) override;
 			virtual std::tuple<IDisposable*, unsigned int> LoadModel(std::string_view modelName, const Vector3& position, const Vector3& scale, const Vector3& rotation, const Vector4& color) override;
-			virtual void* CreateCube(const Vector3& position, const Vector3& scale, const Vector3& rotation, const Vector4& color) override;
-			virtual void* CreateSphere() override;
-			virtual void* CreateCylinder() override;
-			virtual void* CreateCapsule() override;
+			virtual std::tuple<IDisposable*, unsigned int> CreateMesh(const PrimitiveType& primitiveType, const Vector3& position, const Vector3& scale, const Vector3& rotation, const Vector4& color) override;
 			
 			const std::vector<vk::CommandBuffer>& GetCommandBufferOrLists() noexcept
 			{
@@ -58,9 +55,9 @@ namespace GLVK
 				return m_dynamicBufferObject.DynamicAlignment;
 			}
 
-			const vk::PipelineLayout& GetPipelineLayout() const noexcept
+			const Pipeline* GetPipeline() const noexcept
 			{
-				return m_pipeline->GetPipelineLayout();
+				return m_pipeline.get();
 			}
 
 			const vk::DescriptorSet& GetDescriptorSet() const noexcept
@@ -74,7 +71,7 @@ namespace GLVK
 			}
 
 		private:
-			inline static constexpr size_t DESCRIPTOR_TYPE_COUNT = 3;
+			inline static constexpr size_t DESCRIPTOR_TYPE_COUNT = 4;
 
 			static std::vector<const char*> GetRequiredExtensions(bool debug) noexcept;
 			static bool CheckLayerSupport() noexcept;
@@ -146,6 +143,7 @@ namespace GLVK
 			std::vector<std::unique_ptr<Image>> m_images;
 			std::unique_ptr<Shader> m_vertexShader = nullptr;
 			std::unique_ptr<Shader> m_fragmentShader = nullptr;
+			std::unique_ptr<Shader> m_vertexShaderMesh = nullptr;
 			std::unique_ptr<Buffer> m_intermediateBuffer = nullptr;
 			//std::vector<std::unique_ptr<Buffer>> m_mvpBuffers;
 			std::unique_ptr<Buffer> m_mvpBuffer = nullptr;
@@ -159,7 +157,7 @@ namespace GLVK
 			
 			std::vector<Image*> m_textures;
 			std::vector<MODEL*> m_models;
-			std::vector<std::unique_ptr<MESH>> m_meshes;
+			std::vector<MESH*> m_meshes;
 
 			MVP m_mvp = {};
 			DirectionalLight m_directionalLight = {};

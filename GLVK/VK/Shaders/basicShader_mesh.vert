@@ -28,10 +28,10 @@ layout (location = 3) out vec4 fragPos;
 void main()
 {
     vec4 position = vec4(inPosition, 1.0);
-    gl_Position = mvp.projection * mvp.view * dbo.model * position;
+    gl_Position = mvp.projection * mvp.view * dbo_2.model * position;
     
     outNormal = vec4(inNormal, 0.0);
-    outNormal = transpose(inverse(dbo.model)) * outNormal;
+    outNormal = transpose(inverse(dbo_2.model)) * outNormal;
     outTexCoord = inTexCoord;
-    fragPos = dbo.model * vec4(inPosition.xyz, 1.0);
+    fragPos = dbo_2.model * vec4(inPosition.xyz, 1.0);
 }
