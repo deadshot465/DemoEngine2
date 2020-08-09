@@ -2,7 +2,6 @@
 
 layout (binding = 0) uniform ModelViewProjection
 {
-    mat4 model;
     mat4 view;
     mat4 projection;
 } mvp;

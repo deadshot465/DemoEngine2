@@ -75,12 +75,11 @@ void GLVK::VK::GraphicsEngine::Update(float deltaTime)
     static auto elapsed_time_since_last_frame = 0.0f;
     elapsed_time_since_last_frame += deltaTime;
 
-    auto rotate_x = glm::rotate(glm::mat4(1.0f), duration_between * glm::radians(45.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    /*auto rotate_x = glm::rotate(glm::mat4(1.0f), duration_between * glm::radians(45.0f), glm::vec3(1.0f, 0.0f, 0.0f));
     auto rotate_y = glm::rotate(glm::mat4(1.0f), duration_between * glm::radians(-45.0f), glm::vec3(0.0f, -1.0f, 0.0f));
     auto rotate_z = glm::rotate(glm::mat4(1.0f), duration_between * glm::radians(45.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    m_mvp.Model = rotate_z * rotate_y * rotate_x * glm::mat4(1.0f);
-	auto mapped = m_mvpBuffer->Map(sizeof(MVP));
-    memcpy(mapped, &m_mvp, sizeof(MVP));
+	auto mapped = m_mvpBuffer->Map(sizeof(ViewProjection));
+    memcpy(mapped, &m_mvp, sizeof(ViewProjection));*/
 
 	for (auto i = 0; i < m_dynamicBufferObject.Meshes.Models.size(); ++i)
 	{
@@ -111,7 +110,7 @@ void GLVK::VK::GraphicsEngine::Update(float deltaTime)
 		*ptr = world;
 	}
 
-	mapped = m_dynamicMeshUniformBuffer->Map(VK_WHOLE_SIZE);
+	auto mapped = m_dynamicMeshUniformBuffer->Map(VK_WHOLE_SIZE);
 	memcpy(mapped, m_dynamicBufferObject.Meshes.Buffer, m_dynamicMeshUniformBuffer->GetBufferSize());
 
 	mapped = m_dynamicModelUniformBuffer->Map(VK_WHOLE_SIZE);
@@ -722,7 +721,7 @@ void GLVK::VK::GraphicsEngine::CreateDescriptorSets()
 	auto mvp_buffer_info = vk::DescriptorBufferInfo();
 	mvp_buffer_info.buffer = m_mvpBuffer->GetBuffer();
 	mvp_buffer_info.offset = 0;
-	mvp_buffer_info.range = sizeof(MVP);
+	mvp_buffer_info.range = sizeof(ViewProjection);
 
 	auto directional_light_buffer_info = vk::DescriptorBufferInfo();
 	directional_light_buffer_info.buffer = m_directionalLightBuffer->GetBuffer();
@@ -861,10 +860,9 @@ void GLVK::VK::GraphicsEngine::CreateMultisamplingImage()
 
 void GLVK::VK::GraphicsEngine::CreateUniformBuffers()
 {
-	vk::DeviceSize mvp_size = sizeof(MVP);
+	vk::DeviceSize mvp_size = sizeof(ViewProjection);
 	vk::DeviceSize directional_light_size = sizeof(DirectionalLight);
 
-	m_mvp.Model = glm::mat4(1.0f);
 	m_mvp.View = glm::lookAt(glm::vec3(0.0f, 0.0f, -10.0f), glm::vec3(0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
 	m_mvp.Projection = glm::perspective(glm::radians(45.0f), static_cast<float>(m_width) / static_cast<float>(m_height), 0.1f, 100.0f);
 

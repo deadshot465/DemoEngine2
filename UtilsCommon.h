@@ -29,9 +29,8 @@ enum class PrimitiveType
 	Board, Cube, Rect, Sphere, Cylinder, Capsule
 };
 
-struct MVP
+struct ViewProjection
 {
-	alignas(16) glm::mat4 Model;
 	alignas(16) glm::mat4 View;
 	alignas(16) glm::mat4 Projection;
 };

@@ -159,7 +159,7 @@ namespace GLVK
 			std::vector<MODEL*> m_models;
 			std::vector<MESH*> m_meshes;
 
-			MVP m_mvp = {};
+			ViewProjection m_mvp = {};
 			DirectionalLight m_directionalLight = {};
 			PushConstant m_pushConstant = {};
 			struct
